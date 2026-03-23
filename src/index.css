@@ -1,0 +1,21 @@
+@import "tailwindcss";
+
+@theme {
+  /* Brand Colors */
+  --color-brand-primary: #16c47f;
+  --color-brand-secondary: #f5c451;
+
+  /* Background & Surface Colors */
+  --color-app-bg: #0a0a0a;
+  --color-app-card: #141414;
+
+  /* Text Colors */
+  --color-text-main: #ffffff;
+  --color-text-muted: #b3b3b3;
+}
+
+:root {
+  background-color: var(--color-app-bg);
+  color: var(--color-text-main);
+  font-family: "Inter", sans-serif;
+}
