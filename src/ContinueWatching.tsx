@@ -2,10 +2,10 @@ function ContinueWatching() {
   const movies = [
     {
       id: 1,
-      title: "Foundations of Tawheed",
-      episodes: "12 Episodes",
+      title: "Tawheed - The Three Fundamental Principles",
+      episodes: "37 Episodes",
       image:
-        "https://images.unsplash.com/photo-1542810634-71277d95dcbb?q=80&w=400",
+        "https://e3.365dm.com/17/06/1600x900/0ee0f52eb177ff5801a44709978412578c6378b714792605ab2e0cad9586f2a8_3973042.jpg?20170608032802",
     },
     {
       id: 2,
