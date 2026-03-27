@@ -1,8 +1,13 @@
 import { useState } from 'react';
-import VideoPlayer from './VideoPlayer'; // Double check this path!
 
-function Hero() {
-  const [showVideo, setShowVideo] = useState(false);
+interface HeroProps {
+  // Pass the helper function from App.tsx as a prop
+  onPlay: (seriesId: string) => void;
+}
+
+function Hero({ onPlay }: HeroProps) {
+  // Updated to match your data.ts ID exactly
+  const TAWHEED_SERIES_ID = "tawheed-01"; 
 
   return (
     <main className="relative min-h-[85vh] flex flex-col justify-center px-12 text-text-main overflow-hidden">
@@ -43,29 +48,25 @@ function Hero() {
         </p>
         
         <div className="flex gap-4">
+          {/* Primary Play Button */}
           <button 
-            onClick={() => setShowVideo(true)}
+            onClick={() => onPlay(TAWHEED_SERIES_ID)}
             className="flex items-center gap-2 bg-brand-primary text-app-bg px-8 py-3 rounded-lg font-bold transition-all duration-300 hover:scale-105 hover:brightness-110 cursor-pointer shadow-lg shadow-brand-primary/20"
           >
             <span className="text-lg">▶</span>
             Play Lecture
           </button>
           
-          <button className="flex items-center gap-2 bg-white/5 border border-white/10 text-white px-8 py-3 rounded-lg font-bold transition-all duration-300 hover:scale-105 hover:bg-white/10 cursor-pointer backdrop-blur-md">
+          {/* More Info Button - also set to trigger the detail page */}
+          <button 
+            onClick={() => onPlay(TAWHEED_SERIES_ID)}
+            className="flex items-center gap-2 bg-white/5 border border-white/10 text-white px-8 py-3 rounded-lg font-bold transition-all duration-300 hover:scale-105 hover:bg-white/10 cursor-pointer backdrop-blur-md"
+          >
             <span className="text-lg font-black">ⓘ</span>
             More Info
           </button>
         </div>
       </div>
-
-      {/* 4. Modular Video Player */}
-      {showVideo && (
-        <VideoPlayer 
-          url="https://ia801301.us.archive.org/11/items/tawheed.the.three.fundamental.principles/Tawheed_01.mp4"
-          title="Tawheed - Episode 01"
-          onClose={() => setShowVideo(false)}
-        />
-      )}
     </main>
   );
 }
