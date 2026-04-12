@@ -6,74 +6,94 @@ import Sidebar from "./Sidebar";
 import VideoDetailsPage from "./VideoDetailsPage";
 import AudioBooksPage from "./AudioBooksPage";
 import AudioPlayerPage from "./AudioPlayerPage";
-import AudioStickyPlayer from "./AudioStickyPlayer"; // Imported
-import { allSeries } from "./data"; 
-import type { Series, AudioBook } from "./data"; 
+import AudioStickyPlayer from "./AudioStickyPlayer";
+import Login from "./Login";
+import Register from "./Register";
+import { allSeries } from "./data";
+import type { Series, AudioBook } from "./data";
+
+// Added "login" and "register" to the valid pages
+type Page = "home" | "video" | "audiobooks" | "login" | "register";
 
 function App() {
-  const [currentPage, setCurrentPage] = useState<"home" | "video" | "audiobooks">("home");
+  const [currentPage, setCurrentPage] = useState<Page>("home");
   const [selectedSeries, setSelectedSeries] = useState<Series | null>(null);
-  const [selectedAudioBook, setSelectedAudioBook] = useState<AudioBook | null>(null);
+  const [selectedAudioBook, setSelectedAudioBook] = useState<AudioBook | null>(
+    null,
+  );
 
   const handleOpenVideo = (seriesId: string) => {
-    const series = allSeries.find(s => s.id === seriesId);
+    const series = allSeries.find((s) => s.id === seriesId);
     if (series) {
       setSelectedSeries(series);
       setCurrentPage("video");
     }
   };
 
+  const navigateTo = (page: Page) => {
+    setCurrentPage(page);
+    setSelectedAudioBook(null);
+    setSelectedSeries(null);
+  };
+
   return (
     <div className="min-h-screen bg-app-bg text-white relative">
-      <Sidebar 
-        onNavigate={(page: "home" | "audiobooks") => {
-          setCurrentPage(page);
-          // CRITICAL: Reset both selection states so pages don't overlap or get stuck
-          setSelectedAudioBook(null); 
-          setSelectedSeries(null);
-        }} 
-        currentPage={currentPage} 
-      />
-      
+      <Sidebar onNavigate={navigateTo} currentPage={currentPage} />
+
       <div className="pl-20">
-        {/* Navbar usually stays fixed at the top */}
         <Navbar />
 
-        <main className="pb-24"> {/* Added padding bottom so content isn't hidden behind the player */}
+        <main className="pb-24">
+          {/* Dashboard View */}
           {currentPage === "home" && (
             <div className="pt-4">
               <Hero onPlay={handleOpenVideo} />
-              <ContinueWatching onSelectVideo={() => handleOpenVideo("tawheed-01")} />
+              <ContinueWatching
+                onSelectVideo={() => handleOpenVideo("tawheed-01")}
+              />
             </div>
           )}
 
-          {currentPage === "video" && selectedSeries && (
-            <VideoDetailsPage 
-              series={selectedSeries} 
-              onBack={() => {
-                setCurrentPage("home");
-                setSelectedSeries(null);
-              }} 
+          {/* Login View */}
+          {currentPage === "login" && (
+            <Login
+              onSwitch={() => setCurrentPage("register")}
+              onLogin={() => setCurrentPage("home")}
             />
           )}
 
-          {currentPage === "audiobooks" && (
-            !selectedAudioBook ? (
-              <AudioBooksPage 
-                onBack={() => setCurrentPage("home")} 
-                onSelectBook={(book) => setSelectedAudioBook(book)} 
+          {/* Register View */}
+          {currentPage === "register" && (
+            <Register
+              onSwitch={() => setCurrentPage("login")}
+              onRegister={() => setCurrentPage("home")}
+            />
+          )}
+
+          {/* Video View */}
+          {currentPage === "video" && selectedSeries && (
+            <VideoDetailsPage
+              series={selectedSeries}
+              onBack={() => navigateTo("home")}
+            />
+          )}
+
+          {/* Audio View */}
+          {currentPage === "audiobooks" &&
+            (!selectedAudioBook ? (
+              <AudioBooksPage
+                onBack={() => navigateTo("home")}
+                onSelectBook={(book) => setSelectedAudioBook(book)}
               />
             ) : (
-              <AudioPlayerPage 
-                book={selectedAudioBook} 
-                onBack={() => setSelectedAudioBook(null)} 
+              <AudioPlayerPage
+                book={selectedAudioBook}
+                onBack={() => setSelectedAudioBook(null)}
               />
-            )
-          )}
+            ))}
         </main>
       </div>
 
-      {/* Global Audio Player Bar */}
       <AudioStickyPlayer />
     </div>
   );
