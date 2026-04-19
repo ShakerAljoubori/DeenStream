@@ -4,14 +4,14 @@ import type { AudioEpisode, AudioBook } from './data';
 interface AudioPlayerContextType {
   currentEpisode: AudioEpisode | null;
   currentBook: AudioBook | null;
-  isPlaying: boolean;
+  isPlaying: boolean; // TypeScript needs this to stop the red lines
   currentTime: number;
   duration: number;
   volume: number;
   playEpisode: (episode: AudioEpisode, book: AudioBook) => void;
-  togglePlay: () => void;
+  togglePlay: () => void; // TypeScript needs this to stop the red lines
   seek: (time: number) => void;
-  skip: (seconds: number) => void; // Added
+  skip: (seconds: number) => void;
   setVolume: (volume: number) => void;
 }
 
@@ -30,23 +30,29 @@ export const AudioPlayerProvider = ({ children }: { children: React.ReactNode })
   useEffect(() => {
     const audio = audioRef.current;
 
-    const setAudioData = () => setDuration(audio.duration);
-    const setAudioTime = () => setCurrentTime(audio.currentTime);
-    const handleEnded = () => setIsPlaying(false);
+    const setAudioData = () => {
+      setDuration(audio.duration);
+    };
 
-    // Listen for metadata (to get duration) and time updates
-    audio.addEventListener('loadedmetadata', setAudioData);
+    const setAudioTime = () => {
+      setCurrentTime(audio.currentTime);
+    };
+
+    const handleEnded = () => {
+      setIsPlaying(false);
+    };
+
+    audio.addEventListener('loadeddata', setAudioData);
     audio.addEventListener('timeupdate', setAudioTime);
     audio.addEventListener('ended', handleEnded);
 
     return () => {
-      audio.removeEventListener('loadedmetadata', setAudioData);
+      audio.removeEventListener('loadeddata', setAudioData);
       audio.removeEventListener('timeupdate', setAudioTime);
       audio.removeEventListener('ended', handleEnded);
     };
   }, []);
 
-  // Sync volume state with actual audio object
   useEffect(() => {
     audioRef.current.volume = volume;
   }, [volume]);
@@ -68,7 +74,9 @@ export const AudioPlayerProvider = ({ children }: { children: React.ReactNode })
     if (isPlaying) {
       audioRef.current.pause();
     } else {
-      if (audioRef.current.src) audioRef.current.play();
+      if (audioRef.current.src) {
+        audioRef.current.play();
+      }
     }
     setIsPlaying(!isPlaying);
   };
@@ -82,7 +90,6 @@ export const AudioPlayerProvider = ({ children }: { children: React.ReactNode })
 
   const skip = (seconds: number) => {
     if (audioRef.current) {
-      // Calculate new time and clamp it between 0 and duration
       const newTime = Math.min(
         Math.max(0, audioRef.current.currentTime + seconds),
         duration
@@ -103,7 +110,7 @@ export const AudioPlayerProvider = ({ children }: { children: React.ReactNode })
       playEpisode, 
       togglePlay, 
       seek, 
-      skip, // Provided to the app
+      skip,
       setVolume 
     }}>
       {children}
@@ -113,6 +120,8 @@ export const AudioPlayerProvider = ({ children }: { children: React.ReactNode })
 
 export const useAudioPlayer = () => {
   const context = useContext(AudioPlayerContext);
-  if (!context) throw new Error("useAudioPlayer must be used within an AudioPlayerProvider");
+  if (context === undefined) {
+    throw new Error('useAudioPlayer must be used within an AudioPlayerProvider');
+  }
   return context;
 };

@@ -12,9 +12,33 @@ const Register = ({ onSwitch, onRegister }: RegisterProps) => {
     password: "",
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    onRegister(formData);
+    
+    try {
+      // 1. Send the data to your Node.js server
+      const response = await fetch("http://localhost:5000/api/users/register", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(formData),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        // 2. If successful, tell the parent component (App.tsx) the user is registered
+        alert("✅ Account created successfully!");
+        onRegister(data); 
+      } else {
+        // 3. If the server says "User already exists", show that error
+        alert(data.msg || "❌ Registration failed");
+      }
+    } catch (error) {
+      console.error("Error connecting to server:", error);
+      alert("❌ Could not connect to the server. Is it running?");
+    }
   };
 
   return (

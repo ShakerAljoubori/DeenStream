@@ -8,9 +8,38 @@ interface LoginProps {
 const Login = ({ onSwitch, onLogin }: LoginProps) => {
   const [formData, setFormData] = useState({ email: "", password: "" });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    onLogin(formData);
+
+    try {
+      const response = await fetch("http://localhost:5000/api/users/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: formData.email,
+          password: formData.password,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        // 1. Save the token to LocalStorage so the user stays logged in
+        localStorage.setItem("token", data.token);
+        
+        alert("✅ Welcome back!");
+        
+        // 2. Pass the user data to your parent component
+        onLogin(data.user); 
+      } else {
+        alert(data.msg || "❌ Login failed");
+      }
+    } catch (error) {
+      console.error("Login error:", error);
+      alert("❌ Server connection error.");
+    }
   };
 
   return (
