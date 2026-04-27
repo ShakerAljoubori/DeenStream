@@ -5,7 +5,7 @@ import { HiOutlineUserCircle } from "react-icons/hi";
 import { useAudioPlayer } from "./AudioPlayerContext";
 
 interface SidebarProps {
-  onNavigate: (page: "home" | "audiobooks" | "login" | "register") => void;
+  onNavigate: (page: "home" | "audiobooks" | "login" | "register" | "favorites") => void;
   currentPage: string;
   user: { name: string; email: string } | null;
   onLogout: () => void;
@@ -60,7 +60,14 @@ function Sidebar({ onNavigate, currentPage, user, onLogout }: SidebarProps) {
           <IoHeadsetOutline className="text-xl" />
         </button>
 
-        <button className="p-3 rounded-2xl text-white/40 hover:text-white hover:bg-white/5 transition-all duration-300">
+        <button
+          onClick={() => onNavigate("favorites")}
+          className={`p-3 rounded-2xl transition-all duration-300 ${
+            currentPage === "favorites"
+              ? "bg-brand-primary text-black shadow-lg shadow-brand-primary/20"
+              : "text-white/40 hover:text-white hover:bg-white/5"
+          }`}
+        >
           <IoHeartOutline className="text-xl" />
         </button>
       </nav>

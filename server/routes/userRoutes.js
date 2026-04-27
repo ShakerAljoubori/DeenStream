@@ -53,7 +53,21 @@ router.post('/register', async (req, res) => {
     });
 
     await user.save();
-    res.status(201).json({ msg: "User registered successfully!" });
+
+    const token = jwt.sign(
+      { id: user._id },
+      process.env.JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+
+    res.status(201).json({
+      token,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email
+      }
+    });
 
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -90,6 +104,92 @@ router.post('/login', async (req, res) => {
       }
     });
 
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET FAVORITES
+router.get('/favorites', auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).select('favorites');
+    res.json(user.favorites);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// TOGGLE SERIES FAVORITE
+router.post('/favorites/series', auth, async (req, res) => {
+  try {
+    const { seriesId } = req.body;
+    const user = await User.findById(req.user.id);
+    const exists = user.favorites.seriesIds.includes(seriesId);
+    await User.findByIdAndUpdate(req.user.id,
+      exists
+        ? { $pull:     { 'favorites.seriesIds': seriesId } }
+        : { $addToSet: { 'favorites.seriesIds': seriesId } }
+    );
+    const updated = await User.findById(req.user.id).select('favorites');
+    res.json(updated.favorites);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// TOGGLE AUDIOBOOK FAVORITE
+router.post('/favorites/books', auth, async (req, res) => {
+  try {
+    const { bookId } = req.body;
+    const user = await User.findById(req.user.id);
+    const exists = user.favorites.bookIds.includes(bookId);
+    await User.findByIdAndUpdate(req.user.id,
+      exists
+        ? { $pull:     { 'favorites.bookIds': bookId } }
+        : { $addToSet: { 'favorites.bookIds': bookId } }
+    );
+    const updated = await User.findById(req.user.id).select('favorites');
+    res.json(updated.favorites);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// TOGGLE VIDEO EPISODE BOOKMARK
+router.post('/favorites/episodes/video', auth, async (req, res) => {
+  try {
+    const { seriesId, episodeId } = req.body;
+    const user = await User.findById(req.user.id);
+    const exists = user.favorites.videoEpisodes.some(
+      e => e.seriesId === seriesId && e.episodeId === Number(episodeId)
+    );
+    await User.findByIdAndUpdate(req.user.id,
+      exists
+        ? { $pull:     { 'favorites.videoEpisodes': { seriesId, episodeId: Number(episodeId) } } }
+        : { $addToSet: { 'favorites.videoEpisodes': { seriesId, episodeId: Number(episodeId) } } }
+    );
+    const updated = await User.findById(req.user.id).select('favorites');
+    res.json(updated.favorites);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// TOGGLE AUDIO EPISODE BOOKMARK
+router.post('/favorites/episodes/audio', auth, async (req, res) => {
+  try {
+    const { bookId, episodeId } = req.body;
+    const user = await User.findById(req.user.id);
+    const exists = user.favorites.audioEpisodes.some(
+      e => e.bookId === bookId && e.episodeId === Number(episodeId)
+    );
+    await User.findByIdAndUpdate(req.user.id,
+      exists
+        ? { $pull:     { 'favorites.audioEpisodes': { bookId, episodeId: Number(episodeId) } } }
+        : { $addToSet: { 'favorites.audioEpisodes': { bookId, episodeId: Number(episodeId) } } }
+    );
+    const updated = await User.findById(req.user.id).select('favorites');
+    res.json(updated.favorites);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

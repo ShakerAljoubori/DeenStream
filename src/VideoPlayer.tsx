@@ -5,6 +5,8 @@ interface VideoPlayerProps {
   url: string;
   title: string;
   onClose: () => void;
+  initialTimestamp?: number;
+  onProgress?: (timestamp: number, duration: number) => void;
 }
 
 const VolumeIcon = ({ level }: { level: number }) => (
@@ -21,14 +23,38 @@ const FullscreenIcon = () => (
   </svg>
 );
 
-const VideoPlayer = ({ url, title, onClose }: VideoPlayerProps) => {
+const SeekBackIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 0 1 0 12h-3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+
+const SeekForwardIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M15 15l6-6m0 0l-6-6m6 6H9a6 6 0 0 0 0 12h3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+
+const VideoPlayer = ({ url, title, onClose, initialTimestamp, onProgress }: VideoPlayerProps) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [volume, setVolume] = useState(1);
   const [isMuted, setIsMuted] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
   const [showControls, setShowControls] = useState(true);
+  const lastProgressSaveRef = useRef(0);
+
+  const formatTime = (secs: number) => {
+    if (isNaN(secs) || secs === 0) return "0:00";
+    const h = Math.floor(secs / 3600);
+    const m = Math.floor((secs % 3600) / 60);
+    const s = Math.floor(secs % 60);
+    if (h > 0) return `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+    return `${m}:${String(s).padStart(2, "0")}`;
+  };
   
   // FIX: Using ReturnType<typeof setTimeout> removes the NodeJS namespace error
   const controlsTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -51,6 +77,16 @@ const VideoPlayer = ({ url, title, onClose }: VideoPlayerProps) => {
     if (videoRef.current) {
       const currentProgress = (videoRef.current.currentTime / videoRef.current.duration) * 100;
       setProgress(currentProgress);
+      setCurrentTime(videoRef.current.currentTime);
+
+      // Save progress every 10 seconds while playing
+      if (onProgress && videoRef.current.duration > 0) {
+        const now = Date.now();
+        if (now - lastProgressSaveRef.current >= 10000) {
+          lastProgressSaveRef.current = now;
+          onProgress(videoRef.current.currentTime, videoRef.current.duration);
+        }
+      }
     }
   };
 
@@ -95,6 +131,12 @@ const VideoPlayer = ({ url, title, onClose }: VideoPlayerProps) => {
     }
   };
 
+  const seek = (seconds: number) => {
+    if (videoRef.current) {
+      videoRef.current.currentTime = Math.max(0, Math.min(videoRef.current.currentTime + seconds, videoRef.current.duration));
+    }
+  };
+
   const handleMouseMove = () => {
     setShowControls(true);
     if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
@@ -121,8 +163,21 @@ const VideoPlayer = ({ url, title, onClose }: VideoPlayerProps) => {
         src={url}
         className="w-full h-full object-contain"
         onTimeUpdate={handleTimeUpdate}
+        onLoadedMetadata={() => {
+          if (videoRef.current) {
+            setDuration(videoRef.current.duration);
+            if (initialTimestamp && initialTimestamp > 0) {
+              videoRef.current.currentTime = initialTimestamp;
+            }
+          }
+        }}
         onClick={togglePlay}
-        onPause={() => setIsPlaying(false)}
+        onPause={() => {
+          setIsPlaying(false);
+          if (onProgress && videoRef.current && videoRef.current.duration > 0) {
+            onProgress(videoRef.current.currentTime, videoRef.current.duration);
+          }
+        }}
       />
 
       <div className={`absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/40 transition-opacity duration-500 flex flex-col justify-between p-6 ${showControls ? "opacity-100" : "opacity-0"}`}>
@@ -161,12 +216,20 @@ const VideoPlayer = ({ url, title, onClose }: VideoPlayerProps) => {
 
           <div className="flex justify-between items-center">
             <div className="flex items-center gap-6">
+              <button onClick={() => seek(-5)} className="flex flex-col items-center gap-0.5 text-white/60 hover:text-white transition-all">
+                <SeekBackIcon />
+                <span className="text-[8px] font-bold leading-none tracking-wide">5s</span>
+              </button>
               <button onClick={togglePlay} className="text-white hover:text-[#16C47F] transition-all">
                 {isPlaying ? (
                   <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" /><rect x="14" y="4" width="4" height="16" /></svg>
                 ) : (
                   <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z" /></svg>
                 )}
+              </button>
+              <button onClick={() => seek(5)} className="flex flex-col items-center gap-0.5 text-white/60 hover:text-white transition-all">
+                <SeekForwardIcon />
+                <span className="text-[8px] font-bold leading-none tracking-wide">5s</span>
               </button>
               <div className="flex items-center gap-3 group/volume">
                 <button onClick={(e) => { e.stopPropagation(); toggleMute(); }} className="text-white/60 hover:text-white transition-all outline-none">
@@ -185,6 +248,9 @@ const VideoPlayer = ({ url, title, onClose }: VideoPlayerProps) => {
                 Lecture Mode
               </div>
             </div>
+            <span className="text-xs font-mono text-white/40 tabular-nums">
+              {formatTime(currentTime)} / {formatTime(duration)}
+            </span>
           </div>
         </div>
       </div>

@@ -11,6 +11,7 @@ export interface Series {
   category: string;
   description: string;
   instructor: string;
+  thumbnail?: string;
   episodes: Episode[];
 }
 
@@ -37,6 +38,7 @@ export const allSeries: Series[] = [
     title: "Tawheed - The Three Fundamental Principles",
     category: "Aqeedah",
     instructor: "Sheikh Ahmad Musa Jibril",
+    thumbnail: "https://e3.365dm.com/17/06/1600x900/0ee0f52eb177ff5801a44709978412578c6378b714792605ab2e0cad9586f2a8_3973042.jpg?20170608032802",
     description:
       "Based on the classical text Al-Usool Ath-Thalaathah. This lesson covers the three questions of the grave.",
     episodes: [
@@ -262,6 +264,33 @@ export const allSeries: Series[] = [
         duration: "1:06:26",
         url: "https://dn710309.ca.archive.org/0/items/TAWHEEDExplanationOfTheThreeFundamentalPrinciples/TAWHEED%20%2337%20-%20Istighatha-Isti%27adha%20-%20Explanation%20Of%20The%203%20Fundamental%20Principles%20-%20Sh.%20Ahmad%20Jibril.mp4",
       },
+    ],
+  },
+  {
+    id: "fiqh-fasting-01",
+    title: "Comprehensive Fiqh of Fasting",
+    category: "Fiqh",
+    instructor: "Sheikh Ahmad Musa Jibril",
+    thumbnail: "https://archive.org/services/img/ComprehensiveFiqhOfFasting",
+    description:
+      "A comprehensive study of the Fiqh of fasting based on Zaad al-Mustaqni, covering all rulings related to Ramadan, voluntary fasts, and the conditions that affect the fast.",
+    episodes: [
+      { id: 1,  title: "Episode 1",  duration: "", url: "https://archive.org/download/ComprehensiveFiqhOfFasting/01%20The%20Comprehensive%20Fiqh%20of%20Fasting%20%231%20%20Zaad%20al-Mustaqni%20%20-%20Shaykh%20Ahmad%20Jibril.mp4" },
+      { id: 2,  title: "Episode 2",  duration: "", url: "https://archive.org/download/ComprehensiveFiqhOfFasting/02%20The%20Comprehensive%20Fiqh%20of%20Fasting%20%232%20%20Zaad%20al-Mustaqni%20%20-%20Shaykh%20Ahmad%20Jibril.mp4" },
+      { id: 3,  title: "Episode 3",  duration: "", url: "https://archive.org/download/ComprehensiveFiqhOfFasting/03%20The%20Comprehensive%20Fiqh%20of%20Fasting%20%233%20%20Zaad%20al-Mustaqni%20%20-%20Shaykh%20Ahmad%20Jibril.mp4" },
+      { id: 4,  title: "Episode 4",  duration: "", url: "https://archive.org/download/ComprehensiveFiqhOfFasting/04%20The%20Comprehensive%20Fiqh%20of%20Fasting%20%234%20%20Zaad%20al-Mustaqni%20%20-%20Shaykh%20Ahmad%20Jibril.mp4" },
+      { id: 5,  title: "Episode 5",  duration: "", url: "https://archive.org/download/ComprehensiveFiqhOfFasting/05%20The%20Comprehensive%20Fiqh%20of%20Fasting%20%235%20%20Zaad%20al-Mustaqni%20%20-%20Shaykh%20Ahmad%20Jibril.mp4" },
+      { id: 6,  title: "Episode 6",  duration: "", url: "https://archive.org/download/ComprehensiveFiqhOfFasting/06%20The%20Comprehensive%20Fiqh%20of%20Fasting%20%236%20%20Zaad%20al-Mustaqni%20%20-%20Shaykh%20Ahmad%20Jibril.mp4" },
+      { id: 7,  title: "Episode 7",  duration: "", url: "https://archive.org/download/ComprehensiveFiqhOfFasting/07%20The%20Comprehensive%20Fiqh%20of%20Fasting%20%237%20%20Zaad%20al-Mustaqni%20%20-%20Shaykh%20Ahmad%20Jibril.mp4" },
+      { id: 8,  title: "Episode 8",  duration: "", url: "https://archive.org/download/ComprehensiveFiqhOfFasting/08%20The%20Comprehensive%20Fiqh%20of%20Fasting%20%238%20%20Zaad%20al-Mustaqni%20%20-%20Shaykh%20Ahmad%20Jibril.mp4" },
+      { id: 9,  title: "Episode 9",  duration: "", url: "https://archive.org/download/ComprehensiveFiqhOfFasting/09%20The%20Comprehensive%20Fiqh%20of%20Fasting%20%239%20%20Zaad%20al-Mustaqni%20%20-%20Shaykh%20Ahmad%20Jibril.mp4" },
+      { id: 10, title: "Episode 10", duration: "", url: "https://archive.org/download/ComprehensiveFiqhOfFasting/10%20The%20Comprehensive%20Fiqh%20of%20Fasting%20%2310%20%20Zaad%20al-Mustaqni%20%20-%20Shaykh%20Ahmad%20Jibril.mp4" },
+      { id: 11, title: "Episode 11", duration: "", url: "https://archive.org/download/ComprehensiveFiqhOfFasting/11%20The%20Comprehensive%20Fiqh%20of%20Fasting%20%2311%20%20Zaad%20al-Mustaqni%20%20-%20Shaykh%20Ahmad%20Jibril.mp4" },
+      { id: 12, title: "Episode 12", duration: "", url: "https://archive.org/download/ComprehensiveFiqhOfFasting/12%20The%20Comprehensive%20Fiqh%20of%20Fasting%20%2312%20-%20Zaad%20al-Mustaqni%20-%20-%20Shaykh%20Ahmad%20Jibril.mp4" },
+      { id: 13, title: "Episode 13", duration: "", url: "https://archive.org/download/ComprehensiveFiqhOfFasting/13%20The%20Comprehensive%20Fiqh%20of%20Fasting%20%2313%20-%20Zaad%20al-Mustaqni%20-%20-%20Shaykh%20Ahmad%20Jibril.mp4" },
+      { id: 14, title: "Episode 14", duration: "", url: "https://archive.org/download/ComprehensiveFiqhOfFasting/14%20The%20Comprehensive%20Fiqh%20of%20Fasting%20%2314%20%20-%20Zaad%20al-Mustaqni%20-%20-%20Shaykh%20Ahmad%20Jibril.mp4" },
+      { id: 15, title: "Episode 15", duration: "", url: "https://archive.org/download/ComprehensiveFiqhOfFasting/15%20The%20Comprehensive%20Fiqh%20of%20Fasting%20%2315%20-%20Zaad%20al-Mustaqni%20-%20-%20Shaykh%20Ahmad%20Jibril.mp4" },
+      { id: 16, title: "Episode 16", duration: "", url: "https://archive.org/download/ComprehensiveFiqhOfFasting/16%20The%20Comprehensive%20Fiqh%20of%20Fasting%20%2316%20-%20Zaad%20al-Mustaqni%20-%20-%20Shaykh%20Ahmad%20Jibril.mp4" },
     ],
   },
 ];

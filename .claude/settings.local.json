@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:archive.org)",
+      "Bash(npx tsc *)",
+      "Bash(del *)"
+    ]
+  }
+}
