@@ -6,12 +6,13 @@ export interface ProgressEntry {
   episodeId: number;
   timestamp: number;
   duration: number;
+  snapshot?: string;
   updatedAt: string;
 }
 
 interface WatchProgressContextType {
   getProgress: (seriesId: string, episodeId: number) => ProgressEntry | null;
-  saveProgress: (seriesId: string, episodeId: number, timestamp: number, duration: number) => void;
+  saveProgress: (seriesId: string, episodeId: number, timestamp: number, duration: number, snapshot?: string) => void;
   removeProgress: (seriesId: string, episodeId: number) => void;
   allProgress: Record<string, ProgressEntry>;
 }
@@ -43,7 +44,8 @@ export const WatchProgressProvider = ({ children }: { children: React.ReactNode 
     seriesId: string,
     episodeId: number,
     timestamp: number,
-    duration: number
+    duration: number,
+    snapshot?: string
   ) => {
     if (timestamp < 10) return;
 
@@ -66,6 +68,7 @@ export const WatchProgressProvider = ({ children }: { children: React.ReactNode 
       episodeId,
       timestamp,
       duration,
+      ...(snapshot ? { snapshot } : {}),
       updatedAt: new Date().toISOString(),
     };
 

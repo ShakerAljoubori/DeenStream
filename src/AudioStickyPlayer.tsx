@@ -1,22 +1,30 @@
-import { IoPlay, IoPause, IoVolumeHighOutline } from "react-icons/io5";
+import { IoPlay, IoPause, IoVolumeHighOutline, IoClose } from "react-icons/io5";
 import { MdReplay5, MdForward5 } from "react-icons/md";
+import { useState, useEffect } from "react";
 import { useAudioPlayer } from "./AudioPlayerContext";
 
 const AudioStickyPlayer = () => {
-  const { 
-    currentEpisode, 
-    currentBook, 
-    isPlaying, 
-    togglePlay, 
-    currentTime, 
-    duration, 
-    seek, 
-    skip, 
-    volume, 
-    setVolume 
+  const {
+    currentEpisode,
+    currentBook,
+    isPlaying,
+    togglePlay,
+    currentTime,
+    duration,
+    seek,
+    skip,
+    volume,
+    setVolume
   } = useAudioPlayer();
 
-  if (!currentEpisode || !currentBook) return null;
+  const [dismissed, setDismissed] = useState(false);
+
+  // Re-show the player whenever a new episode is started
+  useEffect(() => {
+    setDismissed(false);
+  }, [currentEpisode?.id]);
+
+  if (!currentEpisode || !currentBook || dismissed) return null;
 
   const formatTime = (time: number) => {
     if (isNaN(time)) return "0:00";
@@ -79,12 +87,19 @@ const AudioStickyPlayer = () => {
 
       <div className="flex items-center justify-end gap-3 w-[30%]">
         <IoVolumeHighOutline size={20} className="text-text-muted" />
-        <input 
+        <input
           type="range" min="0" max="1" step="0.01" value={volume}
           onChange={(e) => setVolume(Number(e.target.value))}
           style={{ background: `linear-gradient(to right, #ffffff ${volume * 100}%, rgba(255, 255, 255, 0.1) ${volume * 100}%)` }}
-          className="w-24 h-1 rounded-full appearance-none cursor-pointer accent-white" 
+          className="w-24 h-1 rounded-full appearance-none cursor-pointer accent-white"
         />
+        <button
+          onClick={() => { if (isPlaying) togglePlay(); setDismissed(true); }}
+          className="ml-2 w-7 h-7 rounded-full flex items-center justify-center text-text-muted hover:text-white hover:bg-white/10 transition-all duration-200"
+          title="Dismiss player"
+        >
+          <IoClose size={16} />
+        </button>
       </div>
     </div>
   );

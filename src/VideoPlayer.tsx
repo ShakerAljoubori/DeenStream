@@ -6,7 +6,7 @@ interface VideoPlayerProps {
   title: string;
   onClose: () => void;
   initialTimestamp?: number;
-  onProgress?: (timestamp: number, duration: number) => void;
+  onProgress?: (timestamp: number, duration: number, snapshot?: string) => void;
 }
 
 const VolumeIcon = ({ level }: { level: number }) => (
@@ -73,6 +73,22 @@ const VideoPlayer = ({ url, title, onClose, initialTimestamp, onProgress }: Vide
     }
   }, [isPlaying, audioIsPlaying, pauseAudio]);
 
+  const captureSnapshot = (): string | undefined => {
+    const video = videoRef.current;
+    if (!video || video.readyState < 2) return undefined;
+    try {
+      const canvas = document.createElement("canvas");
+      canvas.width = 320;
+      canvas.height = 180;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return undefined;
+      ctx.drawImage(video, 0, 0, 320, 180);
+      return canvas.toDataURL("image/jpeg", 0.7);
+    } catch {
+      return undefined; // CORS failure — silent fallback
+    }
+  };
+
   const handleTimeUpdate = () => {
     if (videoRef.current) {
       const currentProgress = (videoRef.current.currentTime / videoRef.current.duration) * 100;
@@ -84,7 +100,7 @@ const VideoPlayer = ({ url, title, onClose, initialTimestamp, onProgress }: Vide
         const now = Date.now();
         if (now - lastProgressSaveRef.current >= 10000) {
           lastProgressSaveRef.current = now;
-          onProgress(videoRef.current.currentTime, videoRef.current.duration);
+          onProgress(videoRef.current.currentTime, videoRef.current.duration, captureSnapshot());
         }
       }
     }
@@ -175,7 +191,7 @@ const VideoPlayer = ({ url, title, onClose, initialTimestamp, onProgress }: Vide
         onPause={() => {
           setIsPlaying(false);
           if (onProgress && videoRef.current && videoRef.current.duration > 0) {
-            onProgress(videoRef.current.currentTime, videoRef.current.duration);
+            onProgress(videoRef.current.currentTime, videoRef.current.duration, captureSnapshot());
           }
         }}
       />

@@ -62,8 +62,8 @@ function VideoDetailsPage({ series, user, onBack, initialEpisodeId, initialTimes
               title={`${series.title} - ${currentEpisode.title}`}
               onClose={onBack}
               initialTimestamp={seekTo}
-              onProgress={(timestamp, duration) =>
-                saveProgress(series.id, currentEpisode.id, timestamp, duration)
+              onProgress={(timestamp, duration, snapshot) =>
+                saveProgress(series.id, currentEpisode.id, timestamp, duration, snapshot)
               }
             />
           </div>

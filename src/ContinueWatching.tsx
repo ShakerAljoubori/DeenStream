@@ -1,9 +1,44 @@
+import { useState } from "react";
 import { IoClose } from "react-icons/io5";
 import { allSeries } from "./data";
 import { useWatchProgress } from "./WatchProgressContext";
 
 interface ContinueWatchingProps {
   onSelectVideo: (seriesId: string, episodeId: number, timestamp: number) => void;
+}
+
+function EpisodeThumbnail({ url, fallback, alt }: { url: string; fallback?: string; alt: string }) {
+  const [ready, setReady] = useState(false);
+
+  return (
+    <div className="absolute inset-0">
+      {/* Fallback visible until the video frame is ready */}
+      <div className={`absolute inset-0 transition-opacity duration-300 ${ready ? "opacity-0" : "opacity-100"}`}>
+        {fallback
+          ? <img src={fallback} alt={alt} className="w-full h-full object-cover" />
+          : <div className="w-full h-full flex items-center justify-center bg-white/5">
+              <span className="text-white/20 text-4xl">▶</span>
+            </div>
+        }
+      </div>
+
+      {/* Video seeks to 20% of duration — displayed as a static frame */}
+      {url && (
+        <video
+          className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 ${ready ? "opacity-100" : "opacity-0"}`}
+          src={url}
+          preload="metadata"
+          muted
+          playsInline
+          onLoadedMetadata={(e) => {
+            const v = e.currentTarget;
+            if (v.duration > 0) v.currentTime = v.duration * 0.2;
+          }}
+          onSeeked={() => setReady(true)}
+        />
+      )}
+    </div>
+  );
 }
 
 function ContinueWatching({ onSelectVideo }: ContinueWatchingProps) {
@@ -33,29 +68,24 @@ function ContinueWatching({ onSelectVideo }: ContinueWatchingProps) {
               className="group cursor-pointer w-[220px]"
             >
               <div className="relative aspect-video rounded-xl overflow-hidden bg-app-card border border-white/5 group-hover:border-brand-primary transition-all duration-300">
-                {series.thumbnail ? (
-                  <img
-                    src={series.thumbnail}
-                    alt={series.title}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center bg-white/5">
-                    <span className="text-white/20 text-4xl">▶</span>
-                  </div>
-                )}
+
+                <EpisodeThumbnail
+                  url={episode?.url ?? ""}
+                  fallback={series.thumbnail}
+                  alt={series.title}
+                />
 
                 {/* Remove button — visible on hover */}
                 <button
                   onClick={(e) => { e.stopPropagation(); removeProgress(prog.seriesId, prog.episodeId); }}
-                  className="absolute top-2 right-2 w-6 h-6 rounded-full bg-black/60 backdrop-blur-sm flex items-center justify-center text-white/70 hover:text-white hover:bg-black/80 opacity-0 group-hover:opacity-100 transition-all duration-200 active:scale-95"
+                  className="absolute top-2 right-2 z-10 w-6 h-6 rounded-full bg-black/60 backdrop-blur-sm flex items-center justify-center text-white/70 hover:text-white hover:bg-black/80 opacity-0 group-hover:opacity-100 transition-all duration-200 active:scale-95"
                   title="Remove from Continue Watching"
                 >
                   <IoClose className="text-sm" />
                 </button>
 
                 {/* Progress bar */}
-                <div className="absolute bottom-0 left-0 right-0 h-1 bg-white/20">
+                <div className="absolute bottom-0 left-0 right-0 h-1 bg-white/20 z-10">
                   <div
                     className="h-full bg-[#16C47F] transition-all duration-300"
                     style={{ width: `${pct}%` }}
