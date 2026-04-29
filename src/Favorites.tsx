@@ -8,8 +8,8 @@ interface FavoritesProps {
   user: { name: string; email: string } | null;
   onLogin: () => void;
   onRegister: () => void;
-  onSelectSeries: (seriesId: string) => void;
-  onSelectBook: (book: AudioBook) => void;
+  onSelectSeries: (seriesId: string, episodeId?: number) => void;
+  onSelectBook: (book: AudioBook, episodeId?: number) => void;
 }
 
 // ─── Login Gate ────────────────────────────────────────────────────────────────
@@ -50,8 +50,8 @@ function SavedSeriesTab({
   onSelectSeries,
   onSelectBook,
 }: {
-  onSelectSeries: (id: string) => void;
-  onSelectBook: (book: AudioBook) => void;
+  onSelectSeries: (id: string, episodeId?: number) => void;
+  onSelectBook: (book: AudioBook, episodeId?: number) => void;
 }) {
   const { seriesIds, bookIds, toggleSeries, toggleBook } = useFavorites();
   const series = allSeries.filter((s) => seriesIds.includes(s.id));
@@ -98,8 +98,8 @@ function SavedLecturesTab({
   onSelectSeries,
   onSelectBook,
 }: {
-  onSelectSeries: (id: string) => void;
-  onSelectBook: (book: AudioBook) => void;
+  onSelectSeries: (id: string, episodeId?: number) => void;
+  onSelectBook: (book: AudioBook, episodeId?: number) => void;
 }) {
   const { videoEpisodes, audioEpisodes, toggleVideoEpisode, toggleAudioEpisode } = useFavorites();
 
@@ -159,7 +159,7 @@ function SavedLecturesTab({
                     key={ep.id}
                     title={ep.title}
                     duration={ep.duration}
-                    onPlay={() => onSelectSeries(series.id)}
+                    onPlay={() => onSelectSeries(series.id, ep.id)}
                     onRemove={() => toggleVideoEpisode(series.id, ep.id)}
                     isVideo
                   />
@@ -186,7 +186,7 @@ function SavedLecturesTab({
                     key={ep.id}
                     title={ep.title}
                     duration={ep.duration}
-                    onPlay={() => onSelectBook(book)}
+                    onPlay={() => onSelectBook(book, ep.id)}
                     onRemove={() => toggleAudioEpisode(book.id, ep.id)}
                     isVideo={false}
                   />

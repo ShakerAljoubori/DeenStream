@@ -13,12 +13,14 @@ import Login from "./Login";
 import Register from "./Register";
 import Favorites from "./Favorites";
 import { useFavorites } from "./FavoritesContext";
+import { useAuth } from "./AuthContext";
 import { allSeries, allAudioBooks } from "./data";
 import type { Series, AudioBook } from "./data";
 
 type Page = "home" | "video" | "audiobooks" | "login" | "register" | "favorites";
 
 interface User {
+  id: string;
   name: string;
   email: string;
 }
@@ -35,6 +37,7 @@ function App() {
   const [loading, setLoading] = useState(true);
 
   const { fetchFavorites, clearFavorites } = useFavorites();
+  const { setUserId } = useAuth();
 
   // On mount: restore session + load favorites if token exists
   useEffect(() => {
@@ -47,7 +50,9 @@ function App() {
           });
           if (response.ok) {
             const userData = await response.json();
-            setUser(userData);
+            const id = userData._id ?? userData.id;
+            setUser({ id, name: userData.name, email: userData.email });
+            setUserId(id);
             fetchFavorites();
           } else {
             localStorage.removeItem("token");
@@ -94,6 +99,7 @@ function App() {
   const handleLogout = () => {
     localStorage.removeItem("token");
     setUser(null);
+    setUserId(null);
     clearFavorites();
     setCurrentPage("home");
   };
@@ -110,7 +116,7 @@ function App() {
       />
 
       <div className="pl-20">
-        <Navbar />
+        <Navbar onSelectSeries={handleOpenVideo} onSelectBook={handleOpenBook} />
 
         <main className="pb-24">
           {currentPage === "home" && (
@@ -127,6 +133,7 @@ function App() {
               onSwitch={() => setCurrentPage("register")}
               onLogin={(userData: User) => {
                 setUser(userData);
+                setUserId(userData.id);
                 fetchFavorites();
                 setCurrentPage("home");
               }}
@@ -138,6 +145,7 @@ function App() {
               onSwitch={() => setCurrentPage("login")}
               onRegister={(userData: User) => {
                 setUser(userData);
+                setUserId(userData.id);
                 fetchFavorites();
                 setCurrentPage("home");
               }}
@@ -149,8 +157,8 @@ function App() {
               user={user}
               onLogin={() => setCurrentPage("login")}
               onRegister={() => setCurrentPage("register")}
-              onSelectSeries={(seriesId) => handleOpenVideo(seriesId)}
-              onSelectBook={(book) => handleOpenBook(book.id)}
+              onSelectSeries={(seriesId, episodeId) => handleOpenVideo(seriesId, episodeId)}
+              onSelectBook={(book, episodeId) => handleOpenBook(book.id, episodeId)}
             />
           )}
 

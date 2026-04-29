@@ -28,7 +28,11 @@ const AudioPlayerPage = ({ book, onBack, user, initialEpisodeId, initialTimestam
   }, []);
 
   const isCurrentEpisode = (episodeId: number) => currentEpisode?.id === episodeId;
-  const bookProgress = allAudioProgress[book.id];
+
+  // Find the most recently updated in-progress episode for this book
+  const lastBookEntry = Object.values(allAudioProgress)
+    .filter((e) => e.bookId === book.id)
+    .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0] ?? null;
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#2a2a2a] to-app-bg text-white pt-24 animate-in fade-in duration-500">
@@ -64,11 +68,10 @@ const AudioPlayerPage = ({ book, onBack, user, initialEpisodeId, initialTimestam
             onClick={() => {
               if (currentEpisode && currentBook?.id === book.id) togglePlay();
               else if (book.episodes.length > 0) {
-                // Resume from saved progress if available, otherwise start at episode 1
-                const prog = bookProgress;
-                if (prog) {
-                  const ep = book.episodes.find((e) => e.id === prog.episodeId) ?? book.episodes[0];
-                  playEpisode(ep, book, prog.timestamp);
+                // Resume from most recently played episode, or start at episode 1
+                if (lastBookEntry) {
+                  const ep = book.episodes.find((e) => e.id === lastBookEntry.episodeId) ?? book.episodes[0];
+                  playEpisode(ep, book, lastBookEntry.timestamp);
                 } else {
                   playEpisode(book.episodes[0], book);
                 }
@@ -96,9 +99,10 @@ const AudioPlayerPage = ({ book, onBack, user, initialEpisodeId, initialTimestam
           {book.episodes.map((episode, index) => {
             const isActive = isCurrentEpisode(episode.id);
             const isBookmarked = isAudioEpisodeSaved(book.id, episode.id);
-            const savedTimestamp = bookProgress?.episodeId === episode.id ? bookProgress.timestamp : 0;
-            const pct = savedTimestamp > 0 && bookProgress.duration > 0
-              ? Math.min((savedTimestamp / bookProgress.duration) * 100, 100)
+            const epProg = allAudioProgress[`${book.id}:${episode.id}`];
+            const savedTimestamp = epProg?.timestamp ?? 0;
+            const pct = savedTimestamp > 0 && epProg?.duration
+              ? Math.min((savedTimestamp / epProg.duration) * 100, 100)
               : 0;
 
             return (

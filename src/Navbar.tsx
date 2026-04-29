@@ -1,29 +1,163 @@
+import { useState, useRef, useEffect, useCallback } from "react";
 import { IoSearchOutline } from "react-icons/io5";
+import { allSeries, allAudioBooks } from "./data";
+import type { Series, AudioBook } from "./data";
 
-function Navbar() {
+interface NavbarProps {
+  onSelectSeries: (seriesId: string) => void;
+  onSelectBook: (bookId: string) => void;
+}
+
+interface SearchResults {
+  series: Series[];
+  books: AudioBook[];
+}
+
+function Navbar({ onSelectSeries, onSelectBook }: NavbarProps) {
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState<SearchResults>({ series: [], books: [] });
+  const containerRef = useRef<HTMLDivElement>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const runSearch = useCallback((q: string) => {
+    const lower = q.toLowerCase().trim();
+    if (!lower) {
+      setResults({ series: [], books: [] });
+      return;
+    }
+    const series = allSeries.filter(s =>
+      s.title.toLowerCase().includes(lower) ||
+      s.instructor.toLowerCase().includes(lower) ||
+      s.category.toLowerCase().includes(lower)
+    ).slice(0, 4);
+
+    const books = allAudioBooks.filter(b =>
+      b.title.toLowerCase().includes(lower) ||
+      b.author.toLowerCase().includes(lower)
+    ).slice(0, 4);
+
+    setResults({ series, books });
+  }, []);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setQuery(val);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => runSearch(val), 150);
+  };
+
+  const handleSelect = (type: "series" | "book", id: string) => {
+    setQuery("");
+    setResults({ series: [], books: [] });
+    if (type === "series") onSelectSeries(id);
+    else onSelectBook(id);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Escape") {
+      setQuery("");
+      setResults({ series: [], books: [] });
+    }
+  };
+
+  // Close dropdown when clicking outside the search container
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setQuery("");
+        setResults({ series: [], books: [] });
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const isOpen = query.trim().length > 0;
+  const hasResults = results.series.length > 0 || results.books.length > 0;
+
   return (
     <nav className="fixed top-0 left-0 w-full z-50 flex items-center justify-between pl-24 pr-8 py-4 bg-app-bg/40 backdrop-blur-md border-b border-white/5">
-      
-      {/* 1. Left Spacer (Balances the sidebar logo) */}
-      <div className="flex-1 hidden md:block"></div>
 
-      {/* 2. Centered Expanding Search Bar */}
+      {/* Left spacer */}
+      <div className="flex-1 hidden md:block" />
+
+      {/* Centered search bar */}
       <div className="flex-1 flex justify-center items-center">
-        <div className="relative group flex items-center">
-          {/* Magnifying Glass Icon */}
+        <div ref={containerRef} className="relative flex items-center group">
           <IoSearchOutline className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted group-focus-within:text-brand-primary transition-colors text-lg z-10" />
-          
-          <input 
-            type="text" 
-            placeholder="Search lectures..." 
+
+          <input
+            type="text"
+            value={query}
+            onChange={handleChange}
+            onKeyDown={handleKeyDown}
+            placeholder="Search lectures..."
             className="bg-white/5 border border-white/10 rounded-full py-1.5 pl-10 pr-4 text-sm text-text-main placeholder:text-text-muted/40 focus:outline-none focus:ring-1 focus:ring-brand-primary/30 focus:bg-white/10 transition-all duration-300 ease-in-out w-40 focus:w-80"
           />
+
+          {/* Dropdown */}
+          {isOpen && (
+            <div className="absolute top-full mt-2 left-1/2 -translate-x-1/2 w-80 bg-[#1a1a1a] border border-white/10 rounded-xl shadow-2xl overflow-hidden z-50">
+              {hasResults ? (
+                <>
+                  {results.series.length > 0 && (
+                    <>
+                      <div className="px-4 py-2 text-xs font-medium text-white/30 uppercase tracking-wider">
+                        Series
+                      </div>
+                      {results.series.map(s => (
+                        <button
+                          key={s.id}
+                          onMouseDown={() => handleSelect("series", s.id)}
+                          className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/5 text-left transition-colors"
+                        >
+                          {s.thumbnail ? (
+                            <img src={s.thumbnail} alt="" className="w-10 h-10 rounded-lg object-cover shrink-0" />
+                          ) : (
+                            <div className="w-10 h-10 rounded-lg bg-white/10 shrink-0" />
+                          )}
+                          <div className="min-w-0">
+                            <div className="text-sm text-white truncate">{s.title}</div>
+                            <div className="text-xs text-white/40">{s.instructor} · {s.category}</div>
+                          </div>
+                        </button>
+                      ))}
+                    </>
+                  )}
+
+                  {results.books.length > 0 && (
+                    <>
+                      <div className={`px-4 py-2 text-xs font-medium text-white/30 uppercase tracking-wider ${results.series.length > 0 ? "border-t border-white/5" : ""}`}>
+                        Audio
+                      </div>
+                      {results.books.map(b => (
+                        <button
+                          key={b.id}
+                          onMouseDown={() => handleSelect("book", b.id)}
+                          className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/5 text-left transition-colors"
+                        >
+                          <img src={b.image} alt="" className="w-10 h-10 rounded-lg object-cover shrink-0" />
+                          <div className="min-w-0">
+                            <div className="text-sm text-white truncate">{b.title}</div>
+                            <div className="text-xs text-white/40">{b.author}</div>
+                          </div>
+                        </button>
+                      ))}
+                    </>
+                  )}
+                </>
+              ) : (
+                <div className="px-4 py-6 text-center text-sm text-white/30">
+                  No results for "{query}"
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
-      {/* 3. Right Spacer */}
-      <div className="flex-1 hidden md:block"></div>
-
+      {/* Right spacer */}
+      <div className="flex-1 hidden md:block" />
     </nav>
   );
 }
