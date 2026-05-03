@@ -1,3 +1,4 @@
+import { motion } from "framer-motion";
 import { IoHeart, IoHeartOutline } from "react-icons/io5";
 import { allSeries } from "./data";
 import { useFavorites } from "./FavoritesContext";
@@ -28,7 +29,11 @@ function SeriesBrowse({ onSelectSeries, user }: SeriesBrowseProps) {
               onClick={() => onSelectSeries(series.id)}
               className="group cursor-pointer w-[220px]"
             >
-              <div className="relative aspect-video rounded-xl overflow-hidden bg-app-card border border-white/5 group-hover:border-brand-primary transition-all duration-300">
+              <motion.div
+                layoutId={`thumb-${series.id}`}
+                className="relative aspect-video rounded-xl overflow-hidden bg-app-card border border-white/5 group-hover:border-brand-primary transition-colors duration-300"
+                style={{ borderRadius: 12 }}
+              >
                 {series.thumbnail ? (
                   <img
                     src={series.thumbnail}
@@ -58,7 +63,7 @@ function SeriesBrowse({ onSelectSeries, user }: SeriesBrowseProps) {
                     {saved ? <IoHeart className="text-xs" /> : <IoHeartOutline className="text-xs" />}
                   </button>
                 )}
-              </div>
+              </motion.div>
 
               <div className="mt-2 px-0.5">
                 <h4 className="text-sm font-semibold text-text-main group-hover:text-brand-primary transition-colors leading-snug line-clamp-2">

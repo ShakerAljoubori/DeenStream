@@ -3,7 +3,8 @@
     "allow": [
       "WebFetch(domain:archive.org)",
       "Bash(npx tsc *)",
-      "Bash(del *)"
+      "Bash(del *)",
+      "Bash(npm install *)"
     ]
   }
 }

@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import { AnimatePresence, LayoutGroup, motion } from "framer-motion";
 import Navbar from "./Navbar";
 import Hero from "./Hero";
 import ContinueWatching from "./ContinueWatching";
@@ -36,6 +37,13 @@ function App() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Tracks what page we came FROM so the home page knows whether to
+  // start blurred (returning from video) or faded (fresh load / other page).
+  const prevPageRef = useRef<Page>("home");
+
+  // Saved scroll offset so we can restore position after closing the video overlay.
+  const savedScrollRef = useRef(0);
+
   const { fetchFavorites, clearFavorites } = useFavorites();
   const { setUserId } = useAuth();
 
@@ -69,6 +77,17 @@ function App() {
   const handleOpenVideo = (seriesId: string, episodeId?: number, timestamp?: number) => {
     const series = allSeries.find((s) => s.id === seriesId);
     if (series) {
+      // Lock body scroll SYNCHRONOUSLY — before React re-renders and before
+      // Framer Motion measures the card's getBoundingClientRect().
+      // Using position:fixed + top:-scrollY preserves the visual scroll offset
+      // so the card's viewport position stays identical after locking.
+      savedScrollRef.current = window.scrollY;
+      document.body.style.overflow = "hidden";
+      document.body.style.position = "fixed";
+      document.body.style.top = `-${savedScrollRef.current}px`;
+      document.body.style.width = "100%";
+
+      prevPageRef.current = currentPage;
       setSelectedSeries(series);
       setInitialEpisodeId(episodeId);
       setInitialTimestamp(timestamp);
@@ -87,6 +106,17 @@ function App() {
   };
 
   const navigateTo = (page: Page) => {
+    prevPageRef.current = currentPage;
+
+    // Unlock body scroll and restore the saved position when leaving video.
+    if (currentPage === "video") {
+      document.body.style.overflow = "";
+      document.body.style.position = "";
+      document.body.style.top = "";
+      document.body.style.width = "";
+      window.scrollTo(0, savedScrollRef.current);
+    }
+
     setCurrentPage(page);
     setSelectedAudioBook(null);
     setSelectedSeries(null);
@@ -107,63 +137,134 @@ function App() {
   if (loading) return <div className="min-h-screen bg-app-bg" />;
 
   return (
-    <div className="min-h-screen bg-app-bg text-white relative">
-      <Sidebar
-        onNavigate={navigateTo}
-        currentPage={currentPage}
-        user={user}
-        onLogout={handleLogout}
-      />
+    // LayoutGroup coordinates layoutId animations across separate AnimatePresence trees
+    <LayoutGroup>
+      <div className="min-h-screen bg-app-bg text-white relative">
+        <Sidebar
+          onNavigate={navigateTo}
+          currentPage={currentPage}
+          user={user}
+          onLogout={handleLogout}
+        />
 
-      <div className="pl-20">
-        <Navbar onSelectSeries={handleOpenVideo} onSelectBook={handleOpenBook} />
+        <div className="pl-20">
+          <Navbar onSelectSeries={handleOpenVideo} onSelectBook={handleOpenBook} />
 
-        <main className="pb-24">
-          {currentPage === "home" && (
-            <div className="pt-4">
-              <Hero onPlay={handleOpenVideo} user={user} />
-              <ContinueWatching onSelectVideo={handleOpenVideo} />
-              <ContinueListening onSelectBook={handleOpenBook} />
-              <SeriesBrowse onSelectSeries={handleOpenVideo} user={user} />
-            </div>
-          )}
+          <main className="pb-24">
+            <AnimatePresence>
+              {currentPage === "home" && (
+                <motion.div
+                  key="home"
+                  className="pt-4"
+                  initial={
+                    prevPageRef.current === "video"
+                      ? { opacity: 0.6, filter: "blur(10px)" }
+                      : { opacity: 0, filter: "blur(0px)" }
+                  }
+                  animate={{ opacity: 1, filter: "blur(0px)" }}
+                  exit={{ opacity: 0.6, filter: "blur(10px)" }}
+                  transition={{ duration: 0.42, ease: [0.32, 0.72, 0, 1] }}
+                >
+                  <Hero onPlay={handleOpenVideo} user={user} />
+                  <ContinueWatching onSelectVideo={handleOpenVideo} />
+                  <ContinueListening onSelectBook={handleOpenBook} />
+                  <SeriesBrowse onSelectSeries={handleOpenVideo} user={user} />
+                </motion.div>
+              )}
 
-          {currentPage === "login" && (
-            <Login
-              onSwitch={() => setCurrentPage("register")}
-              onLogin={(userData: User) => {
-                setUser(userData);
-                setUserId(userData.id);
-                fetchFavorites();
-                setCurrentPage("home");
-              }}
-            />
-          )}
+              {currentPage === "login" && (
+                <motion.div
+                  key="login"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <Login
+                    onSwitch={() => setCurrentPage("register")}
+                    onLogin={(userData: User) => {
+                      setUser(userData);
+                      setUserId(userData.id);
+                      fetchFavorites();
+                      setCurrentPage("home");
+                    }}
+                  />
+                </motion.div>
+              )}
 
-          {currentPage === "register" && (
-            <Register
-              onSwitch={() => setCurrentPage("login")}
-              onRegister={(userData: User) => {
-                setUser(userData);
-                setUserId(userData.id);
-                fetchFavorites();
-                setCurrentPage("home");
-              }}
-            />
-          )}
+              {currentPage === "register" && (
+                <motion.div
+                  key="register"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <Register
+                    onSwitch={() => setCurrentPage("login")}
+                    onRegister={(userData: User) => {
+                      setUser(userData);
+                      setUserId(userData.id);
+                      fetchFavorites();
+                      setCurrentPage("home");
+                    }}
+                  />
+                </motion.div>
+              )}
 
-          {currentPage === "favorites" && (
-            <Favorites
-              user={user}
-              onLogin={() => setCurrentPage("login")}
-              onRegister={() => setCurrentPage("register")}
-              onSelectSeries={(seriesId, episodeId) => handleOpenVideo(seriesId, episodeId)}
-              onSelectBook={(book, episodeId) => handleOpenBook(book.id, episodeId)}
-            />
-          )}
+              {currentPage === "favorites" && (
+                <motion.div
+                  key="favorites"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <Favorites
+                    user={user}
+                    onLogin={() => setCurrentPage("login")}
+                    onRegister={() => setCurrentPage("register")}
+                    onSelectSeries={(seriesId, episodeId) => handleOpenVideo(seriesId, episodeId)}
+                    onSelectBook={(book, episodeId) => handleOpenBook(book.id, episodeId)}
+                  />
+                </motion.div>
+              )}
 
+              {currentPage === "audiobooks" && (
+                <motion.div
+                  key="audiobooks"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  {!selectedAudioBook ? (
+                    <AudioBooksPage
+                      onBack={() => navigateTo("home")}
+                      onSelectBook={(book) => handleOpenBook(book.id)}
+                      user={user}
+                    />
+                  ) : (
+                    <AudioPlayerPage
+                      book={selectedAudioBook}
+                      onBack={() => setSelectedAudioBook(null)}
+                      user={user}
+                      initialEpisodeId={initialAudioEpisodeId}
+                      initialTimestamp={initialAudioTimestamp}
+                    />
+                  )}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </main>
+        </div>
+
+        {/* Video overlay — separate AnimatePresence so it layers over the home page
+            while the home cards' layoutIds are still in the DOM for the morph origin */}
+        <AnimatePresence>
           {currentPage === "video" && selectedSeries && (
             <VideoDetailsPage
+              key={selectedSeries.id}
               series={selectedSeries}
               user={user}
               onBack={() => navigateTo("home")}
@@ -171,28 +272,11 @@ function App() {
               initialTimestamp={initialTimestamp}
             />
           )}
+        </AnimatePresence>
 
-          {currentPage === "audiobooks" &&
-            (!selectedAudioBook ? (
-              <AudioBooksPage
-                onBack={() => navigateTo("home")}
-                onSelectBook={(book) => handleOpenBook(book.id)}
-                user={user}
-              />
-            ) : (
-              <AudioPlayerPage
-                book={selectedAudioBook}
-                onBack={() => setSelectedAudioBook(null)}
-                user={user}
-                initialEpisodeId={initialAudioEpisodeId}
-                initialTimestamp={initialAudioTimestamp}
-              />
-            ))}
-        </main>
+        <AudioStickyPlayer />
       </div>
-
-      <AudioStickyPlayer />
-    </div>
+    </LayoutGroup>
   );
 }
 

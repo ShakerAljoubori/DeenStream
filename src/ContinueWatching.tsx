@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { motion } from "framer-motion";
 import { IoClose } from "react-icons/io5";
 import { allSeries } from "./data";
 import { useWatchProgress } from "./WatchProgressContext";
@@ -67,8 +68,11 @@ function ContinueWatching({ onSelectVideo }: ContinueWatchingProps) {
               onClick={() => onSelectVideo(prog.seriesId, prog.episodeId, prog.timestamp)}
               className="group cursor-pointer w-[220px]"
             >
-              <div className="relative aspect-video rounded-xl overflow-hidden bg-app-card border border-white/5 group-hover:border-brand-primary transition-all duration-300">
-
+              <motion.div
+                layoutId={`thumb-${series.id}`}
+                className="relative aspect-video rounded-xl overflow-hidden bg-app-card border border-white/5 group-hover:border-brand-primary transition-colors duration-300"
+                style={{ borderRadius: 12 }}
+              >
                 <EpisodeThumbnail
                   url={episode?.url ?? ""}
                   fallback={series.thumbnail}
@@ -91,7 +95,7 @@ function ContinueWatching({ onSelectVideo }: ContinueWatchingProps) {
                     style={{ width: `${pct}%` }}
                   />
                 </div>
-              </div>
+              </motion.div>
 
               <div className="mt-2">
                 <h4 className="text-sm font-semibold text-text-main group-hover:text-brand-primary transition-colors truncate">

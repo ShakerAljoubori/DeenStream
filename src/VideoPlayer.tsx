@@ -7,6 +7,7 @@ interface VideoPlayerProps {
   onClose: () => void;
   initialTimestamp?: number;
   onProgress?: (timestamp: number, duration: number, snapshot?: string) => void;
+  poster?: string;
 }
 
 const VolumeIcon = ({ level }: { level: number }) => (
@@ -35,7 +36,7 @@ const SeekForwardIcon = () => (
   </svg>
 );
 
-const VideoPlayer = ({ url, title, onClose, initialTimestamp, onProgress }: VideoPlayerProps) => {
+const VideoPlayer = ({ url, title, onClose, initialTimestamp, onProgress, poster }: VideoPlayerProps) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -177,6 +178,7 @@ const VideoPlayer = ({ url, title, onClose, initialTimestamp, onProgress }: Vide
       <video
         ref={videoRef}
         src={url}
+        poster={poster}
         className="w-full h-full object-contain"
         onTimeUpdate={handleTimeUpdate}
         onLoadedMetadata={() => {
