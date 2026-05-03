@@ -15,7 +15,11 @@ function SeriesBrowse({ onSelectSeries, user }: SeriesBrowseProps) {
     <section className="px-8 mt-4 mb-12">
       <div className="flex items-center gap-3 mb-4">
         <h3 className="text-lg font-bold text-text-main">All Series</h3>
-        <span className="text-xs font-bold text-[#16C47F] bg-[#16C47F]/10 border border-[#16C47F]/20 px-2 py-0.5 rounded-full">
+        {/* Gold count badge */}
+        <span
+          className="text-xs font-bold px-2 py-0.5 rounded-full"
+          style={{ color: "#f5c451", background: "rgba(245,196,81,0.1)", border: "1px solid rgba(245,196,81,0.25)" }}
+        >
           {allSeries.length}
         </span>
       </div>
@@ -31,8 +35,9 @@ function SeriesBrowse({ onSelectSeries, user }: SeriesBrowseProps) {
             >
               <motion.div
                 layoutId={`thumb-${series.id}`}
-                className="relative aspect-video rounded-xl overflow-hidden bg-app-card border border-white/5 group-hover:border-brand-primary transition-colors duration-300"
-                style={{ borderRadius: 12 }}
+                className="relative aspect-video rounded-xl overflow-hidden bg-app-card transition-all duration-300"
+                style={{ borderRadius: 12, border: "1px solid rgba(255,255,255,0.06)" }}
+                whileHover={{ boxShadow: "0 0 0 1px rgba(22,196,127,0.5), 0 8px 32px rgba(22,196,127,0.18)" }}
               >
                 {series.thumbnail ? (
                   <img
@@ -46,7 +51,11 @@ function SeriesBrowse({ onSelectSeries, user }: SeriesBrowseProps) {
                   </div>
                 )}
 
-                <span className="absolute bottom-2 left-2 text-[9px] font-bold text-[#16C47F] uppercase tracking-widest bg-black/60 backdrop-blur-sm px-2 py-1 rounded">
+                {/* Category badge with gradient border */}
+                <span
+                  className="absolute bottom-2 left-2 text-[9px] font-bold uppercase tracking-widest backdrop-blur-sm px-2 py-1 rounded"
+                  style={{ color: "#16c47f", background: "rgba(0,0,0,0.65)", border: "1px solid rgba(22,196,127,0.3)" }}
+                >
                   {series.category}
                 </span>
 
@@ -54,10 +63,11 @@ function SeriesBrowse({ onSelectSeries, user }: SeriesBrowseProps) {
                   <button
                     onClick={(e) => { e.stopPropagation(); toggleSeries(series.id); }}
                     className={`absolute top-2 right-2 w-7 h-7 rounded-full flex items-center justify-center backdrop-blur-sm transition-all hover:scale-110 active:scale-95 ${
-                      saved
-                        ? "bg-[#16C47F]/20 text-[#16C47F]"
-                        : "bg-black/50 text-white/60 opacity-0 group-hover:opacity-100"
+                      saved ? "" : "opacity-0 group-hover:opacity-100"
                     }`}
+                    style={saved
+                      ? { background: "rgba(22,196,127,0.2)", color: "#16c47f" }
+                      : { background: "rgba(0,0,0,0.5)", color: "rgba(255,255,255,0.6)" }}
                     title={saved ? "Remove from favorites" : "Save to favorites"}
                   >
                     {saved ? <IoHeart className="text-xs" /> : <IoHeartOutline className="text-xs" />}
@@ -70,7 +80,10 @@ function SeriesBrowse({ onSelectSeries, user }: SeriesBrowseProps) {
                   {series.title}
                 </h4>
                 <p className="text-xs text-text-muted mt-0.5 truncate">{series.instructor}</p>
-                <p className="text-xs text-white/25 mt-0.5">{series.episodes.length} episodes</p>
+                {/* Gold episode count */}
+                <p className="text-xs mt-0.5 font-medium" style={{ color: "rgba(245,196,81,0.6)" }}>
+                  {series.episodes.length} episodes
+                </p>
               </div>
             </div>
           );

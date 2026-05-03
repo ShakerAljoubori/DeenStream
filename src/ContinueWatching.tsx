@@ -53,7 +53,7 @@ function ContinueWatching({ onSelectVideo }: ContinueWatchingProps) {
 
   return (
     <section className="px-8 mt-12 mb-4">
-      <h3 className="text-lg font-bold mb-4 text-text-main">Continue Watching</h3>
+      <h3 className="text-lg font-bold mb-4 text-text-main">Continue <span style={{ background: "linear-gradient(135deg, #f5c451 0%, #e8a820 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>Watching</span></h3>
 
       <div className="flex flex-wrap gap-4">
         {entries.map((prog) => {
@@ -69,9 +69,10 @@ function ContinueWatching({ onSelectVideo }: ContinueWatchingProps) {
               className="group cursor-pointer w-[220px]"
             >
               <motion.div
-                layoutId={`thumb-${series.id}`}
-                className="relative aspect-video rounded-xl overflow-hidden bg-app-card border border-white/5 group-hover:border-brand-primary transition-colors duration-300"
-                style={{ borderRadius: 12 }}
+                layoutId={`thumb-cw-${series.id}`}
+                className="relative aspect-video rounded-xl overflow-hidden bg-app-card transition-all duration-300"
+                style={{ borderRadius: 12, border: "1px solid rgba(255,255,255,0.06)" }}
+                whileHover={{ boxShadow: "0 0 0 1px rgba(22,196,127,0.5), 0 8px 32px rgba(22,196,127,0.18)" }}
               >
                 <EpisodeThumbnail
                   url={episode?.url ?? ""}
@@ -91,8 +92,8 @@ function ContinueWatching({ onSelectVideo }: ContinueWatchingProps) {
                 {/* Progress bar */}
                 <div className="absolute bottom-0 left-0 right-0 h-1 bg-white/20 z-10">
                   <div
-                    className="h-full bg-[#16C47F] transition-all duration-300"
-                    style={{ width: `${pct}%` }}
+                    className="h-full transition-all duration-300"
+                    style={{ width: `${pct}%`, background: "linear-gradient(90deg, #16c47f 0%, #f5c451 100%)" }}
                   />
                 </div>
               </motion.div>

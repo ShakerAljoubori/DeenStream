@@ -77,7 +77,8 @@ const AudioPlayerPage = ({ book, onBack, user, initialEpisodeId, initialTimestam
                 }
               }
             }}
-            className="w-14 h-14 bg-brand-primary rounded-full flex items-center justify-center text-black hover:scale-105 transition shadow-lg active:scale-95"
+            className="w-14 h-14 rounded-full flex items-center justify-center text-black hover:scale-105 transition shadow-lg active:scale-95"
+            style={{ background: "linear-gradient(135deg, #22e696 0%, #16c47f 60%, #0db36e 100%)", boxShadow: "0 4px 20px rgba(22,196,127,0.35)" }}
           >
             {isPlaying && currentBook?.id === book.id
               ? <IoPause size={30} />
@@ -162,8 +163,8 @@ const AudioPlayerPage = ({ book, onBack, user, initialEpisodeId, initialTimestam
                 {pct > 0 && (
                   <div className="absolute bottom-0 left-4 right-4 h-0.5 bg-white/10 rounded-full">
                     <div
-                      className="h-full bg-brand-primary rounded-full"
-                      style={{ width: `${pct}%` }}
+                      className="h-full rounded-full"
+                      style={{ width: `${pct}%`, background: "linear-gradient(90deg, #16c47f 0%, #f5c451 100%)" }}
                     />
                   </div>
                 )}

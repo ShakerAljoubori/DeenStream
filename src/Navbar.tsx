@@ -76,7 +76,7 @@ function Navbar({ onSelectSeries, onSelectBook }: NavbarProps) {
   const hasResults = results.series.length > 0 || results.books.length > 0;
 
   return (
-    <nav className="fixed top-0 left-0 w-full z-50 flex items-center justify-between pl-24 pr-8 py-4 bg-app-bg/40 backdrop-blur-md border-b border-white/5">
+    <nav className="fixed top-0 left-0 w-full z-50 flex items-center justify-between pl-24 pr-8 py-4 backdrop-blur-md" style={{ background: "linear-gradient(180deg, rgba(10,24,16,0.92) 0%, rgba(8,12,9,0.7) 100%)", borderBottom: "1px solid rgba(22, 196, 127, 0.18)" }}>
 
       {/* Left spacer */}
       <div className="flex-1 hidden md:block" />
@@ -97,7 +97,7 @@ function Navbar({ onSelectSeries, onSelectBook }: NavbarProps) {
 
           {/* Dropdown */}
           {isOpen && (
-            <div className="absolute top-full mt-2 left-1/2 -translate-x-1/2 w-80 bg-[#1a1a1a] border border-white/10 rounded-xl shadow-2xl overflow-hidden z-50">
+            <div className="absolute top-full mt-2 left-1/2 -translate-x-1/2 w-80 rounded-xl shadow-2xl overflow-hidden z-50" style={{ background: "linear-gradient(145deg, #1a2e22 0%, #111111 100%)", border: "1px solid rgba(22, 196, 127, 0.15)" }}>
               {hasResults ? (
                 <>
                   {results.series.length > 0 && (

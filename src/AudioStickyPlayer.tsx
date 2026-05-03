@@ -46,7 +46,7 @@ const AudioStickyPlayer = () => {
   const progressPercent = duration > 0 ? (currentTime / duration) * 100 : 0;
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 h-20 bg-[#121212] border-t border-white/10 px-4 flex items-center justify-between z-[100] backdrop-blur-md">
+    <div className="fixed bottom-0 left-0 right-0 h-20 px-4 flex items-center justify-between z-[100] backdrop-blur-md" style={{ background: "linear-gradient(180deg, #111a14 0%, #0d0d0d 100%)", borderTop: "1px solid rgba(22,196,127,0.2)" }}>
       <div className="flex items-center gap-4 w-[30%]">
         <div className="w-12 h-12 rounded-lg overflow-hidden bg-white/5 border border-white/10 flex-shrink-0">
           <img src={currentBook.image} alt={currentBook.title} className="w-full h-full object-cover" />

@@ -29,7 +29,8 @@ function LoginGate({ onLogin, onRegister }: { onLogin: () => void; onRegister: (
         <div className="flex gap-3 justify-center">
           <button
             onClick={onLogin}
-            className="px-6 py-2.5 bg-[#16C47F] text-black font-bold rounded-xl hover:bg-[#14b374] transition-all active:scale-[0.98]"
+            className="px-6 py-2.5 text-black font-bold rounded-xl hover:brightness-110 transition-all active:scale-[0.98]"
+            style={{ background: "linear-gradient(135deg, #22e696 0%, #16c47f 60%, #0db36e 100%)" }}
           >
             Sign In
           </button>
@@ -257,7 +258,7 @@ function SeriesCard({ series, onSelect, onRemove }: { series: Series; onSelect: 
 
 function BookCard({ book, onSelect, onRemove }: { book: AudioBook; onSelect: () => void; onRemove: () => void }) {
   return (
-    <div className="group bg-[#181818] p-3 rounded-xl hover:bg-[#282828] transition-all duration-300 w-[190px] border border-transparent hover:border-[#16C47F]/20">
+    <div className="group p-3 rounded-xl transition-all duration-300 w-[190px]" style={{ background: "linear-gradient(145deg, #1a2820 0%, #141414 100%)", border: "1px solid rgba(255,255,255,0.05)" }} onMouseEnter={e => (e.currentTarget as HTMLElement).style.borderColor = "rgba(22,196,127,0.25)"} onMouseLeave={e => (e.currentTarget as HTMLElement).style.borderColor = "rgba(255,255,255,0.05)"}>
       <div className="relative aspect-square mb-3 overflow-hidden rounded-lg shadow-xl" onClick={onSelect}>
         <img
           src={book.image}
@@ -268,7 +269,7 @@ function BookCard({ book, onSelect, onRemove }: { book: AudioBook; onSelect: () 
           onClick={onSelect}
           className="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition-all translate-y-1 group-hover:translate-y-0 cursor-pointer"
         >
-          <div className="bg-[#16C47F] p-2 rounded-full shadow-lg hover:scale-110 transition-transform">
+          <div className="p-2 rounded-full shadow-lg hover:scale-110 transition-transform" style={{ background: "linear-gradient(135deg, #22e696 0%, #16c47f 100%)" }}>
             <span className="text-black text-sm">▶</span>
           </div>
         </div>
@@ -308,7 +309,8 @@ function EpisodeRow({
       <div className="flex items-center gap-3 ml-4 shrink-0">
         <button
           onClick={onPlay}
-          className="text-xs font-bold text-black bg-[#16C47F] px-3 py-1 rounded-lg hover:bg-[#14b374] transition-all active:scale-95"
+          className="text-xs font-bold text-black px-3 py-1 rounded-lg hover:brightness-110 transition-all active:scale-95"
+          style={{ background: "linear-gradient(135deg, #22e696 0%, #16c47f 100%)" }}
         >
           {isVideo ? "Watch" : "Listen"}
         </button>
@@ -338,11 +340,8 @@ function Favorites({ user, onLogin, onRegister, onSelectSeries, onSelectBook }: 
           <button
             key={t}
             onClick={() => setTab(t)}
-            className={`px-5 py-2 rounded-lg text-sm font-bold transition-all ${
-              tab === t
-                ? "bg-[#16C47F] text-black shadow-lg shadow-[#16C47F]/20"
-                : "text-white/40 hover:text-white"
-            }`}
+            className={`px-5 py-2 rounded-lg text-sm font-bold transition-all ${tab === t ? "text-black" : "text-white/40 hover:text-white"}`}
+            style={tab === t ? { background: "linear-gradient(135deg, #22e696 0%, #16c47f 60%, #0db36e 100%)", boxShadow: "0 2px 12px rgba(22,196,127,0.3)" } : undefined}
           >
             {t === "series" ? "Saved Series" : "Saved Lectures"}
           </button>

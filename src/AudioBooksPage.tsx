@@ -16,7 +16,7 @@ const AudioBooksPage = ({ onBack, onSelectBook, user }: AudioBooksPageProps) => 
     <div className="p-8 pt-24 animate-in fade-in duration-500 min-h-screen bg-app-bg">
       <div className="flex items-center justify-between mb-8 text-white">
         <div>
-          <h1 className="text-4xl font-black mb-2 tracking-tight">Audio Library</h1>
+          <h1 className="text-4xl font-black mb-2 tracking-tight">Audio <span style={{ background: "linear-gradient(135deg, #f5c451 0%, #e8a820 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>Library</span></h1>
           <p className="text-text-muted">Your collection of audiobooks and deep-dives.</p>
         </div>
         <button
@@ -33,7 +33,10 @@ const AudioBooksPage = ({ onBack, onSelectBook, user }: AudioBooksPageProps) => 
           return (
             <div
               key={book.id}
-              className="group bg-[#181818] p-4 rounded-xl hover:bg-[#282828] transition-all duration-300 shadow-xl border border-transparent hover:border-brand-primary/20"
+              className="group p-4 rounded-xl transition-all duration-300 shadow-xl"
+              style={{ background: "linear-gradient(145deg, #1a2820 0%, #141414 100%)", border: "1px solid rgba(255,255,255,0.05)" }}
+              onMouseEnter={e => (e.currentTarget as HTMLElement).style.borderColor = "rgba(22,196,127,0.25)"}
+              onMouseLeave={e => (e.currentTarget as HTMLElement).style.borderColor = "rgba(255,255,255,0.05)"}
             >
               <div className="relative aspect-square mb-4 overflow-hidden rounded-lg shadow-2xl">
                 <img
@@ -47,7 +50,7 @@ const AudioBooksPage = ({ onBack, onSelectBook, user }: AudioBooksPageProps) => 
                   onClick={() => onSelectBook(book)}
                   className="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition-all translate-y-2 group-hover:translate-y-0 cursor-pointer"
                 >
-                  <div className="bg-[#16C47F] p-3 rounded-full shadow-lg transform hover:scale-110">
+                  <div className="p-3 rounded-full shadow-lg transform hover:scale-110" style={{ background: "linear-gradient(135deg, #22e696 0%, #16c47f 100%)" }}>
                     <span className="text-black text-xl">▶</span>
                   </div>
                 </div>

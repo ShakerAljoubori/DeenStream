@@ -8,6 +8,8 @@ interface VideoPlayerProps {
   initialTimestamp?: number;
   onProgress?: (timestamp: number, duration: number, snapshot?: string) => void;
   poster?: string;
+  onPlayStart?: () => void;
+  autoPlay?: boolean;
 }
 
 const VolumeIcon = ({ level }: { level: number }) => (
@@ -36,7 +38,7 @@ const SeekForwardIcon = () => (
   </svg>
 );
 
-const VideoPlayer = ({ url, title, onClose, initialTimestamp, onProgress, poster }: VideoPlayerProps) => {
+const VideoPlayer = ({ url, title, onClose, initialTimestamp, onProgress, poster, onPlayStart, autoPlay }: VideoPlayerProps) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -187,9 +189,11 @@ const VideoPlayer = ({ url, title, onClose, initialTimestamp, onProgress, poster
             if (initialTimestamp && initialTimestamp > 0) {
               videoRef.current.currentTime = initialTimestamp;
             }
+            if (autoPlay) videoRef.current.play();
           }
         }}
         onClick={togglePlay}
+        onPlay={() => { setIsPlaying(true); onPlayStart?.(); }}
         onPause={() => {
           setIsPlaying(false);
           if (onProgress && videoRef.current && videoRef.current.duration > 0) {
@@ -213,7 +217,7 @@ const VideoPlayer = ({ url, title, onClose, initialTimestamp, onProgress, poster
         </div>
 
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
-          <button onClick={togglePlay} className="w-20 h-20 bg-[#16C47F] rounded-full flex items-center justify-center text-black transform transition-all hover:scale-110 active:scale-95 shadow-2xl shadow-[#16C47F]/20">
+          <button onClick={togglePlay} className="w-20 h-20 rounded-full flex items-center justify-center text-black transform transition-all hover:scale-110 active:scale-95" style={{ background: "linear-gradient(135deg, #22e696 0%, #16c47f 60%, #0db36e 100%)", boxShadow: "0 0 40px rgba(22,196,127,0.45)" }}>
             {isPlaying ? (
               <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" /><rect x="14" y="4" width="4" height="16" /></svg>
             ) : (
@@ -226,7 +230,7 @@ const VideoPlayer = ({ url, title, onClose, initialTimestamp, onProgress, poster
           <div className="relative group/progress h-1.5 flex items-center">
             <input type="range" min="0" max="100" value={progress} onChange={handleProgressChange} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
             <div className="w-full h-1 bg-white/20 rounded-full overflow-hidden">
-              <div className="h-full bg-[#16C47F] rounded-full transition-all duration-100 relative" style={{ width: `${progress}%` }}>
+              <div className="h-full rounded-full transition-all duration-100 relative" style={{ width: `${progress}%`, background: "linear-gradient(90deg, #16c47f 0%, #f5c451 100%)" }}>
                 <div className="absolute right-0 top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full shadow-lg scale-0 group-hover/progress:scale-100 transition-transform" />
               </div>
             </div>
@@ -256,13 +260,20 @@ const VideoPlayer = ({ url, title, onClose, initialTimestamp, onProgress, poster
                 <input
                   type="range" min="0" max="1" step="0.01" value={volume} onChange={handleVolumeChange}
                   className="w-16 h-1 rounded-full appearance-none cursor-pointer accent-white"
-                  style={{ background: `linear-gradient(to right, #16C47F ${volume * 100}%, rgba(255, 255, 255, 0.2) ${volume * 100}%)` }}
+                  style={{ background: `linear-gradient(to right, #16c47f 0%, #f5c451 ${volume * 100}%, rgba(255, 255, 255, 0.2) ${volume * 100}%)` }}
                 />
               </div>
               <button onClick={(e) => { e.stopPropagation(); toggleFullscreen(); }} className="text-white/60 hover:text-[#16C47F] transition-all">
                 <FullscreenIcon />
               </button>
-              <div className="text-[10px] font-bold text-[#16C47F] uppercase tracking-tighter bg-[#16C47F]/10 px-2 py-1 rounded border border-[#16C47F]/20">
+              <div
+                className="text-[10px] font-medium uppercase tracking-widest px-2 py-1 rounded"
+                style={{
+                  background: "rgba(22,196,127,0.08)",
+                  border: "1px solid rgba(22,196,127,0.28)",
+                  color: "rgba(22,196,127,0.75)",
+                }}
+              >
                 Lecture Mode
               </div>
             </div>

@@ -42,7 +42,7 @@ function ContinueListening({ onSelectBook }: ContinueListeningProps) {
 
   return (
     <section className="px-8 mt-8 mb-4">
-      <h3 className="text-lg font-bold mb-4 text-text-main">Continue Listening</h3>
+      <h3 className="text-lg font-bold mb-4 text-text-main">Continue <span style={{ background: "linear-gradient(135deg, #f5c451 0%, #e8a820 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>Listening</span></h3>
 
       <div className="flex flex-col gap-2 max-w-2xl">
         {stableKeys.map((key) => {
@@ -90,8 +90,8 @@ function ContinueListening({ onSelectBook }: ContinueListeningProps) {
                 <div className="mt-2 flex items-center gap-2">
                   <div className="flex-1 h-1 bg-white/10 rounded-full overflow-hidden">
                     <div
-                      className="h-full bg-[#16C47F] rounded-full"
-                      style={{ width: `${pct}%`, transition: isActive ? "none" : "width 0.3s" }}
+                      className="h-full rounded-full"
+                      style={{ width: `${pct}%`, transition: isActive ? "none" : "width 0.3s", background: "linear-gradient(90deg, #16c47f 0%, #f5c451 100%)" }}
                     />
                   </div>
                   <span className="text-[10px] text-text-muted tabular-nums shrink-0 w-16 text-right">

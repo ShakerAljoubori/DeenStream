@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { AnimatePresence, LayoutGroup, motion } from "framer-motion";
+import gsap from "gsap";
 import Navbar from "./Navbar";
 import Hero from "./Hero";
 import ContinueWatching from "./ContinueWatching";
@@ -43,6 +44,10 @@ function App() {
 
   // Saved scroll offset so we can restore position after closing the video overlay.
   const savedScrollRef = useRef(0);
+
+  // GSAP page transition curtain
+  const overlayRef = useRef<HTMLDivElement>(null);
+  const isTransitioningRef = useRef(false);
 
   const { fetchFavorites, clearFavorites } = useFavorites();
   const { setUserId } = useAuth();
@@ -106,24 +111,44 @@ function App() {
   };
 
   const navigateTo = (page: Page) => {
-    prevPageRef.current = currentPage;
+    if (page === currentPage) return;
 
-    // Unlock body scroll and restore the saved position when leaving video.
+    // Video close: let Framer Motion layoutId morph play unobstructed — skip curtain.
     if (currentPage === "video") {
       document.body.style.overflow = "";
       document.body.style.position = "";
       document.body.style.top = "";
       document.body.style.width = "";
       window.scrollTo(0, savedScrollRef.current);
+      prevPageRef.current = "video";
+      setCurrentPage(page);
+      setSelectedAudioBook(null);
+      setSelectedSeries(null);
+      setInitialEpisodeId(undefined);
+      setInitialTimestamp(undefined);
+      setInitialAudioEpisodeId(undefined);
+      setInitialAudioTimestamp(undefined);
+      return;
     }
 
-    setCurrentPage(page);
-    setSelectedAudioBook(null);
-    setSelectedSeries(null);
-    setInitialEpisodeId(undefined);
-    setInitialTimestamp(undefined);
-    setInitialAudioEpisodeId(undefined);
-    setInitialAudioTimestamp(undefined);
+    if (isTransitioningRef.current) return;
+    isTransitioningRef.current = true;
+    prevPageRef.current = currentPage;
+
+    gsap.timeline({ onComplete: () => { isTransitioningRef.current = false; } })
+      .set(overlayRef.current, { y: "100%" })
+      .to(overlayRef.current, { y: "0%", duration: 0.42, ease: "power3.inOut" })
+      .call(() => {
+        setCurrentPage(page);
+        setSelectedAudioBook(null);
+        setSelectedSeries(null);
+        setInitialEpisodeId(undefined);
+        setInitialTimestamp(undefined);
+        setInitialAudioEpisodeId(undefined);
+        setInitialAudioTimestamp(undefined);
+        window.scrollTo(0, 0);
+      })
+      .to(overlayRef.current, { y: "-100%", duration: 0.42, ease: "power3.inOut", delay: 0.05 });
   };
 
   const handleLogout = () => {
@@ -275,6 +300,17 @@ function App() {
         </AnimatePresence>
 
         <AudioStickyPlayer />
+
+        {/* GSAP page transition curtain — sweeps up from below, exits through top */}
+        <div
+          ref={overlayRef}
+          className="fixed inset-0 pointer-events-none"
+          style={{
+            zIndex: 9999,
+            transform: "translateY(100%)",
+            background: "linear-gradient(180deg, #080f0c 0%, #0d2318 82%, #16c47f 96%, #22e696 100%)",
+          }}
+        />
       </div>
     </LayoutGroup>
   );

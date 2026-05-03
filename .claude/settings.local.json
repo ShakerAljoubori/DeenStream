@@ -4,7 +4,11 @@
       "WebFetch(domain:archive.org)",
       "Bash(npx tsc *)",
       "Bash(del *)",
-      "Bash(npm install *)"
+      "Bash(npm install *)",
+      "WebFetch(domain:dn710309.ca.archive.org)",
+      "WebFetch(domain:dn711006.ca.archive.org)",
+      "Bash(Remove-Item *)",
+      "WebFetch(domain:www.awwwards.com)"
     ]
   }
 }
