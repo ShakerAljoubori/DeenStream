@@ -27,6 +27,7 @@ export interface AudioBook {
   id: string;
   title: string;
   author: string;
+  category: string;
   image: string;
   episodes: AudioEpisode[];
 }
@@ -319,6 +320,7 @@ export const allAudioBooks: AudioBook[] = [
     id: "book-1",
     title: "The Lives of the Prophets",
     author: "Imaam Anwar Al-Awlaki",
+    category: "Seerah",
     image: "https://adviceforparadise.com/media/pic-series/Lives_of_the_Prophets.png",
     episodes: [
       {
@@ -339,6 +341,7 @@ export const allAudioBooks: AudioBook[] = [
     id: "book-2",
     title: "Kitab At-Tawheed",
     author: "Sheikh Ahmad Musa Jibril",
+    category: "Aqeedah",
     image: "https://images.unsplash.com/photo-1589829085413-56de8ae18c73?auto=format&fit=crop&q=80&w=400",
     episodes: [],
   },

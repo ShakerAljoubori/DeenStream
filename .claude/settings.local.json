@@ -8,7 +8,13 @@
       "WebFetch(domain:dn710309.ca.archive.org)",
       "WebFetch(domain:dn711006.ca.archive.org)",
       "Bash(Remove-Item *)",
-      "WebFetch(domain:www.awwwards.com)"
+      "WebFetch(domain:www.awwwards.com)",
+      "Bash(Get-ChildItem \"C:\\\\Users\\\\Shaker\" -Recurse -Filter \"*.obsidian\" -Directory -ErrorAction SilentlyContinue)",
+      "Bash(Select-Object -First 5 FullName)",
+      "Bash(Get-ChildItem \"C:\\\\Users\\\\Shaker\\\\Documents\" -Directory)",
+      "Bash(Select-Object Name)",
+      "PowerShell(Get-ChildItem \"C:\\\\Users\\\\Shaker\\\\Documents\" -Directory | ForEach-Object { $_.Name })",
+      "PowerShell(Get-ChildItem \"C:\\\\Users\\\\Shaker\\\\Documents\\\\DeenStream\" | ForEach-Object { $_.Name }')"
     ]
   }
 }

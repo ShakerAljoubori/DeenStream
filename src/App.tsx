@@ -104,15 +104,38 @@ function App() {
   const handleOpenBook = (bookId: string, episodeId?: number, timestamp?: number) => {
     const book = allAudioBooks.find((b) => b.id === bookId);
     if (book) {
+      savedScrollRef.current = window.scrollY;
+      document.body.style.overflow = "hidden";
+      document.body.style.position = "fixed";
+      document.body.style.top = `-${savedScrollRef.current}px`;
+      document.body.style.width = "100%";
+
       setSelectedAudioBook(book);
       setInitialAudioEpisodeId(episodeId);
       setInitialAudioTimestamp(timestamp);
-      setCurrentPage("audiobooks");
     }
   };
 
+  const handleCloseBook = () => {
+    document.body.style.overflow = "";
+    document.body.style.position = "";
+    document.body.style.top = "";
+    document.body.style.width = "";
+    window.scrollTo(0, savedScrollRef.current);
+    setSelectedAudioBook(null);
+    setInitialAudioEpisodeId(undefined);
+    setInitialAudioTimestamp(undefined);
+  };
+
   const navigateTo = (page: Page) => {
-    if (page === currentPage) return;
+    if (page === currentPage && !selectedAudioBook) return;
+
+    // Audio overlay close — let Framer Motion morph play, skip GSAP curtain.
+    if (selectedAudioBook) {
+      handleCloseBook();
+      if (page === currentPage) return;
+      // Fall through to GSAP for the page navigation.
+    }
 
     // Video close: let Framer Motion layoutId morph play unobstructed — skip curtain.
     if (currentPage === "video") {
@@ -181,7 +204,7 @@ function App() {
           onLogout={handleLogout}
         />
 
-        <div className="pl-20">
+        <div className="pl-0 md:pl-20">
           <Navbar onSelectSeries={handleOpenVideo} onSelectBook={handleOpenBook} />
 
           <main className={currentPage === "login" || currentPage === "register" ? "" : "pb-24"}>
@@ -230,23 +253,11 @@ function App() {
               )}
 
               {currentPage === "audiobooks" && (
-                <div>
-                  {!selectedAudioBook ? (
-                    <AudioBooksPage
-                      onBack={() => navigateTo("home")}
-                      onSelectBook={(book) => handleOpenBook(book.id)}
-                      user={user}
-                    />
-                  ) : (
-                    <AudioPlayerPage
-                      book={selectedAudioBook}
-                      onBack={() => setSelectedAudioBook(null)}
-                      user={user}
-                      initialEpisodeId={initialAudioEpisodeId}
-                      initialTimestamp={initialAudioTimestamp}
-                    />
-                  )}
-                </div>
+                <AudioBooksPage
+                  onBack={() => navigateTo("home")}
+                  onSelectBook={(book) => handleOpenBook(book.id)}
+                  user={user}
+                />
               )}
             </div>
           </main>
@@ -271,6 +282,20 @@ function App() {
                   setInitialTimestamp(undefined);
                 }
               }}
+            />
+          )}
+        </AnimatePresence>
+
+        {/* Audio overlay — same pattern as video, fixed inset-0 over whatever page is current */}
+        <AnimatePresence>
+          {selectedAudioBook && (
+            <AudioPlayerPage
+              key={selectedAudioBook.id}
+              book={selectedAudioBook}
+              onBack={handleCloseBook}
+              user={user}
+              initialEpisodeId={initialAudioEpisodeId}
+              initialTimestamp={initialAudioTimestamp}
             />
           )}
         </AnimatePresence>

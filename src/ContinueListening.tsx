@@ -11,6 +11,7 @@ interface ContinueListeningProps {
 function ContinueListening({ onSelectBook }: ContinueListeningProps) {
   const { allAudioProgress, removeAudioProgress } = useAudioProgress();
   const { playEpisode, togglePlay, currentEpisode, isPlaying, currentTime, duration } = useAudioPlayer();
+  const [confirmKey, setConfirmKey] = useState<string | null>(null);
 
   const validKeys = (progress: typeof allAudioProgress) =>
     Object.values(progress)
@@ -63,6 +64,7 @@ function ContinueListening({ onSelectBook }: ContinueListeningProps) {
             <div
               key={key}
               onClick={() => onSelectBook(prog.bookId, prog.episodeId, prog.timestamp)}
+              onMouseLeave={() => { if (confirmKey === key) setConfirmKey(null); }}
               className="group cursor-pointer flex items-center gap-3 px-4 py-3 rounded-xl bg-app-card border border-white/5 hover:border-brand-primary transition-all duration-200"
             >
               {/* Episode number */}
@@ -123,14 +125,23 @@ function ContinueListening({ onSelectBook }: ContinueListeningProps) {
                 )}
               </button>
 
-              {/* Remove button */}
-              <button
-                onClick={(e) => { e.stopPropagation(); removeAudioProgress(prog.bookId, prog.episodeId); }}
-                className="shrink-0 w-6 h-6 rounded-full bg-white/5 flex items-center justify-center text-white/30 hover:text-white hover:bg-white/15 opacity-0 group-hover:opacity-100 transition-all duration-200 active:scale-95"
-                title="Remove from Continue Listening"
-              >
-                <IoClose className="text-xs" />
-              </button>
+              {/* Remove button — with inline confirm */}
+              {confirmKey === key ? (
+                <button
+                  onClick={(e) => { e.stopPropagation(); removeAudioProgress(prog.bookId, prog.episodeId); setConfirmKey(null); }}
+                  className="shrink-0 px-2 h-6 rounded-full bg-red-500/80 flex items-center justify-center text-white text-[10px] font-bold transition-all duration-200"
+                >
+                  Sure?
+                </button>
+              ) : (
+                <button
+                  onClick={(e) => { e.stopPropagation(); setConfirmKey(key); }}
+                  className="shrink-0 w-6 h-6 rounded-full bg-white/5 flex items-center justify-center text-white/30 hover:text-white hover:bg-white/15 opacity-0 group-hover:opacity-100 transition-all duration-200 active:scale-95"
+                  title="Remove from Continue Listening"
+                >
+                  <IoClose className="text-xs" />
+                </button>
+              )}
             </div>
           );
         })}

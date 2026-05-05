@@ -48,6 +48,7 @@ const VideoPlayer = ({ url, title, onClose, initialTimestamp, onProgress, poster
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [showControls, setShowControls] = useState(true);
+  const [isBuffering, setIsBuffering] = useState(false);
   const lastProgressSaveRef = useRef(0);
 
   const formatTime = (secs: number) => {
@@ -161,9 +162,72 @@ const VideoPlayer = ({ url, title, onClose, initialTimestamp, onProgress, poster
     setShowControls(true);
     if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
     controlsTimeoutRef.current = setTimeout(() => {
-      if (isPlaying) setShowControls(false);
+      if (isPlaying && !isBuffering) setShowControls(false);
     }, 3000);
   };
+
+  // Auto-hide controls 3s after playback starts (handles autoplay with no mouse movement).
+  // Also keeps controls visible while buffering or paused.
+  useEffect(() => {
+    if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
+    if (isPlaying && !isBuffering) {
+      controlsTimeoutRef.current = setTimeout(() => setShowControls(false), 3000);
+    } else {
+      setShowControls(true);
+    }
+  }, [isPlaying, isBuffering]);
+
+  // Keyboard shortcuts — reads from DOM refs so no stale closures
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement).tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || (e.target as HTMLElement).isContentEditable) return;
+      const video = videoRef.current;
+      if (!video) return;
+
+      switch (e.key) {
+        case " ":
+        case "k":
+        case "K":
+          e.preventDefault();
+          video.paused ? video.play() : video.pause();
+          break;
+        case "ArrowLeft":
+          e.preventDefault();
+          video.currentTime = Math.max(0, video.currentTime - 5);
+          break;
+        case "ArrowRight":
+          e.preventDefault();
+          video.currentTime = Math.min(video.duration || 0, video.currentTime + 5);
+          break;
+        case "m":
+        case "M":
+          e.preventDefault();
+          if (video.muted || video.volume === 0) {
+            video.muted = false; video.volume = 1; setVolume(1); setIsMuted(false);
+          } else {
+            video.muted = true; setVolume(0); setIsMuted(true);
+          }
+          break;
+        case "f":
+        case "F":
+          e.preventDefault();
+          if (!document.fullscreenElement) containerRef.current?.requestFullscreen();
+          else document.exitFullscreen();
+          break;
+        case "ArrowUp":
+          e.preventDefault();
+          { const v = parseFloat(Math.min(1, video.volume + 0.1).toFixed(2)); video.volume = v; video.muted = false; setVolume(v); setIsMuted(false); }
+          break;
+        case "ArrowDown":
+          e.preventDefault();
+          { const v = parseFloat(Math.max(0, video.volume - 0.1).toFixed(2)); video.volume = v; video.muted = v === 0; setVolume(v); setIsMuted(v === 0); }
+          break;
+      }
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, []); // stable — all reads go through refs, all setters are stable
 
   useEffect(() => {
     return () => {
@@ -194,6 +258,9 @@ const VideoPlayer = ({ url, title, onClose, initialTimestamp, onProgress, poster
           }
         }}
         onClick={togglePlay}
+        onWaiting={() => setIsBuffering(true)}
+        onPlaying={() => { setIsPlaying(true); setIsBuffering(false); onPlayStart?.(); }}
+        onCanPlay={() => setIsBuffering(false)}
         onPlay={() => { setIsPlaying(true); onPlayStart?.(); }}
         onPause={() => {
           setIsPlaying(false);
@@ -217,15 +284,17 @@ const VideoPlayer = ({ url, title, onClose, initialTimestamp, onProgress, poster
           </button>
         </div>
 
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
-          <button onClick={togglePlay} className="w-20 h-20 rounded-full flex items-center justify-center text-black transform transition-all hover:scale-110 active:scale-95" style={{ background: "linear-gradient(135deg, #22e696 0%, #16c47f 60%, #0db36e 100%)", boxShadow: "0 0 40px rgba(22,196,127,0.45)" }}>
-            {isPlaying ? (
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" /><rect x="14" y="4" width="4" height="16" /></svg>
-            ) : (
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z" /></svg>
-            )}
-          </button>
-        </div>
+        {!isBuffering && (
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
+            <button onClick={togglePlay} className="w-20 h-20 rounded-full flex items-center justify-center text-black transform transition-all hover:scale-110 active:scale-95" style={{ background: "linear-gradient(135deg, #22e696 0%, #16c47f 60%, #0db36e 100%)", boxShadow: "0 0 40px rgba(22,196,127,0.45)" }}>
+              {isPlaying ? (
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" /><rect x="14" y="4" width="4" height="16" /></svg>
+              ) : (
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z" /></svg>
+              )}
+            </button>
+          </div>
+        )}
 
         <div className="space-y-4">
           <div className="relative group/progress h-1.5 flex items-center">
@@ -261,22 +330,12 @@ const VideoPlayer = ({ url, title, onClose, initialTimestamp, onProgress, poster
                 <input
                   type="range" min="0" max="1" step="0.01" value={volume} onChange={handleVolumeChange}
                   className="w-16 h-1 rounded-full appearance-none cursor-pointer accent-white"
-                  style={{ background: `linear-gradient(to right, #16c47f 0%, #f5c451 ${volume * 100}%, rgba(255, 255, 255, 0.2) ${volume * 100}%)` }}
+                  style={{ background: `linear-gradient(to right, #16c47f 0%, #f5c451 ${Math.max(volume * 100, volume > 0 ? 3 : 0)}%, rgba(255, 255, 255, 0.2) ${Math.max(volume * 100, volume > 0 ? 3 : 0)}%)` }}
                 />
               </div>
               <button onClick={(e) => { e.stopPropagation(); toggleFullscreen(); }} className="text-white/60 hover:text-[#16C47F] transition-all">
                 <FullscreenIcon />
               </button>
-              <div
-                className="text-[10px] font-medium uppercase tracking-widest px-2 py-1 rounded"
-                style={{
-                  background: "rgba(22,196,127,0.08)",
-                  border: "1px solid rgba(22,196,127,0.28)",
-                  color: "rgba(22,196,127,0.75)",
-                }}
-              >
-                Lecture Mode
-              </div>
             </div>
             <span className="text-xs font-mono text-white/40 tabular-nums">
               {formatTime(currentTime)} / {formatTime(duration)}
@@ -284,6 +343,13 @@ const VideoPlayer = ({ url, title, onClose, initialTimestamp, onProgress, poster
           </div>
         </div>
       </div>
+
+      {/* Spinner rendered after controls overlay so it stacks on top */}
+      {isBuffering && (
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-30">
+          <div className="w-11 h-11 rounded-full border-2 border-white/20 border-t-[#16c47f] animate-spin" />
+        </div>
+      )}
     </div>
   );
 };

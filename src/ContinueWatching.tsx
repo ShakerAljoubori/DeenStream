@@ -44,6 +44,7 @@ function EpisodeThumbnail({ url, fallback, alt }: { url: string; fallback?: stri
 
 function ContinueWatching({ onSelectVideo }: ContinueWatchingProps) {
   const { allProgress, removeProgress } = useWatchProgress();
+  const [confirmKey, setConfirmKey] = useState<string | null>(null);
 
   const entries = Object.values(allProgress)
     .filter((prog) => prog.seriesId && allSeries.some((s) => s.id === prog.seriesId))
@@ -66,6 +67,7 @@ function ContinueWatching({ onSelectVideo }: ContinueWatchingProps) {
             <div
               key={`${prog.seriesId}:${prog.episodeId}`}
               onClick={() => onSelectVideo(prog.seriesId, prog.episodeId, prog.timestamp)}
+              onMouseLeave={() => { if (confirmKey === `${prog.seriesId}:${prog.episodeId}`) setConfirmKey(null); }}
               className="group cursor-pointer w-[220px]"
             >
               <motion.div
@@ -80,14 +82,23 @@ function ContinueWatching({ onSelectVideo }: ContinueWatchingProps) {
                   alt={series.title}
                 />
 
-                {/* Remove button — visible on hover */}
-                <button
-                  onClick={(e) => { e.stopPropagation(); removeProgress(prog.seriesId, prog.episodeId); }}
-                  className="absolute top-2 right-2 z-10 w-6 h-6 rounded-full bg-black/60 backdrop-blur-sm flex items-center justify-center text-white/70 hover:text-white hover:bg-black/80 opacity-0 group-hover:opacity-100 transition-all duration-200 active:scale-95"
-                  title="Remove from Continue Watching"
-                >
-                  <IoClose className="text-sm" />
-                </button>
+                {/* Remove button — visible on hover, with inline confirm */}
+                {confirmKey === `${prog.seriesId}:${prog.episodeId}` ? (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); removeProgress(prog.seriesId, prog.episodeId); setConfirmKey(null); }}
+                    className="absolute top-2 right-2 z-10 px-2 h-6 rounded-full bg-red-500/80 backdrop-blur-sm flex items-center justify-center text-white text-[10px] font-bold transition-all duration-200"
+                  >
+                    Sure?
+                  </button>
+                ) : (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setConfirmKey(`${prog.seriesId}:${prog.episodeId}`); }}
+                    className="absolute top-2 right-2 z-10 w-6 h-6 rounded-full bg-black/60 backdrop-blur-sm flex items-center justify-center text-white/70 hover:text-white hover:bg-black/80 opacity-0 group-hover:opacity-100 transition-all duration-200 active:scale-95"
+                    title="Remove from Continue Watching"
+                  >
+                    <IoClose className="text-sm" />
+                  </button>
+                )}
 
                 {/* Progress bar */}
                 <div className="absolute bottom-0 left-0 right-0 h-1 bg-white/20 z-10">

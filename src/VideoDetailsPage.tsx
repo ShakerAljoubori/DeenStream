@@ -116,6 +116,8 @@ function VideoDetailsPage({ series, user, onBack, initialEpisodeId, initialTimes
 
   const [localReaction, setLocalReaction] = useState<"like" | "dislike" | null>(null);
   const [reported, setReported] = useState(false);
+  const [pendingSeries, setPendingSeries] = useState(false);
+  const [pendingEpisode, setPendingEpisode] = useState(false);
 
   const activeEpisodeRef = useRef<HTMLDivElement>(null);
 
@@ -373,20 +375,20 @@ function VideoDetailsPage({ series, user, onBack, initialEpisodeId, initialTimes
                 <motion.div variants={staggerItem} className="mt-5 flex items-center gap-2.5 flex-wrap">
 
                   <button
-                    onClick={() => user && toggleSeries(series.id)}
+                    onClick={async () => { if (!user || pendingSeries) return; setPendingSeries(true); await toggleSeries(series.id); setPendingSeries(false); }}
                     className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium border transition-all hover:scale-105 active:scale-95 ${
                       seriesSaved ? "bg-[#16C47F]/10 border-[#16C47F]/30 text-[#16C47F]" : "bg-white/5 border-white/10 text-white/50 hover:text-white hover:border-white/25"
-                    } ${!user ? "opacity-40 cursor-not-allowed" : ""}`}
+                    } ${!user ? "opacity-40 cursor-not-allowed" : ""} ${pendingSeries ? "opacity-50 pointer-events-none" : ""}`}
                   >
                     {seriesSaved ? <IoHeart className="text-base" /> : <IoHeartOutline className="text-base" />}
                     <span>{seriesSaved ? "Saved" : "Favorite"}</span>
                   </button>
 
                   <button
-                    onClick={() => user && toggleVideoEpisode(series.id, currentEpisode.id)}
+                    onClick={async () => { if (!user || pendingEpisode) return; setPendingEpisode(true); await toggleVideoEpisode(series.id, currentEpisode.id); setPendingEpisode(false); }}
                     className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium border transition-all hover:scale-105 active:scale-95 ${
                       episodeBookmarked ? "bg-[#f5c451]/10 border-[#f5c451]/30 text-[#f5c451]" : "bg-white/5 border-white/10 text-white/50 hover:text-white hover:border-white/25"
-                    } ${!user ? "opacity-40 cursor-not-allowed" : ""}`}
+                    } ${!user ? "opacity-40 cursor-not-allowed" : ""} ${pendingEpisode ? "opacity-50 pointer-events-none" : ""}`}
                   >
                     {episodeBookmarked ? <IoBookmark className="text-base" /> : <IoBookmarkOutline className="text-base" />}
                     <span>{episodeBookmarked ? "Bookmarked" : "Bookmark"}</span>
@@ -444,23 +446,33 @@ function VideoDetailsPage({ series, user, onBack, initialEpisodeId, initialTimes
                       >
                         {user.name[0].toUpperCase()}
                       </div>
-                      <div className="flex-1 relative">
-                        <input
-                          type="text"
-                          value={commentText}
-                          onChange={(e) => setCommentText(e.target.value)}
-                          onKeyDown={(e) => e.key === "Enter" && postComment()}
-                          placeholder="Add a comment..."
-                          maxLength={1000}
-                          className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 pr-11 text-sm text-white placeholder-white/30 focus:outline-none focus:border-brand-primary/50 transition-colors"
-                        />
-                        <button
-                          onClick={postComment}
-                          disabled={!commentText.trim() || postingComment}
-                          className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1.5 rounded-lg text-brand-primary disabled:opacity-30 hover:bg-brand-primary/10 transition-all"
-                        >
-                          <IoPaperPlane className="text-base" />
-                        </button>
+                      <div className="flex-1 flex flex-col gap-1">
+                        <div className="relative">
+                          <input
+                            type="text"
+                            value={commentText}
+                            onChange={(e) => setCommentText(e.target.value)}
+                            onKeyDown={(e) => e.key === "Enter" && postComment()}
+                            placeholder="Add a comment..."
+                            maxLength={1000}
+                            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 pr-11 text-sm text-white placeholder-white/30 focus:outline-none focus:border-brand-primary/50 transition-colors"
+                          />
+                          <button
+                            onClick={postComment}
+                            disabled={!commentText.trim() || postingComment}
+                            className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1.5 rounded-lg text-brand-primary disabled:opacity-30 hover:bg-brand-primary/10 transition-all"
+                          >
+                            <IoPaperPlane className="text-base" />
+                          </button>
+                        </div>
+                        {commentText.length > 0 && (
+                          <span
+                            className="text-right text-[10px] tabular-nums pr-1 transition-colors"
+                            style={{ color: commentText.length > 900 ? "#f5c451" : "rgba(255,255,255,0.2)" }}
+                          >
+                            {commentText.length}/1000
+                          </span>
+                        )}
                       </div>
                     </div>
                   ) : (
