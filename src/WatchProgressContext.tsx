@@ -17,6 +17,7 @@ interface WatchProgressContextType {
   allProgress: Record<string, ProgressEntry>;
 }
 
+const API = "http://localhost:5000/api/watch-progress";
 const makeKey = (seriesId: string, episodeId: number) => `${seriesId}:${episodeId}`;
 
 const loadFromStorage = (key: string): Record<string, ProgressEntry> => {
@@ -28,17 +29,58 @@ const loadFromStorage = (key: string): Record<string, ProgressEntry> => {
   }
 };
 
+const saveToStorage = (key: string, data: Record<string, ProgressEntry>) => {
+  try { localStorage.setItem(key, JSON.stringify(data)); } catch {}
+};
+
+const getToken = () => localStorage.getItem("token");
+
 const WatchProgressContext = createContext<WatchProgressContextType | undefined>(undefined);
 
 export const WatchProgressProvider = ({ children }: { children: React.ReactNode }) => {
   const { userId } = useAuth();
   const lsKey = userId ? `ds_watch_progress_${userId}` : "ds_watch_progress_guest";
 
-  const [allProgress, setAllProgress] = useState<Record<string, ProgressEntry>>(() => loadFromStorage(lsKey));
+  const [allProgress, setAllProgress] = useState<Record<string, ProgressEntry>>(() =>
+    loadFromStorage(lsKey)
+  );
 
+  // When userId changes (login/logout/switch), load the right data source
   useEffect(() => {
-    setAllProgress(loadFromStorage(lsKey));
-  }, [lsKey]);
+    if (!userId) {
+      setAllProgress(loadFromStorage("ds_watch_progress_guest"));
+      return;
+    }
+
+    const token = getToken();
+    if (!token) {
+      setAllProgress(loadFromStorage(lsKey));
+      return;
+    }
+
+    // Logged in — fetch from server
+    fetch(API, { headers: { "x-auth-token": token } })
+      .then((r) => r.json())
+      .then((entries: Array<{ seriesId: string; episodeId: number; timestamp: number; duration: number; updatedAt: string }>) => {
+        const map: Record<string, ProgressEntry> = {};
+        for (const e of entries) {
+          map[makeKey(e.seriesId, e.episodeId)] = {
+            seriesId: e.seriesId,
+            episodeId: e.episodeId,
+            timestamp: e.timestamp,
+            duration: e.duration,
+            updatedAt: e.updatedAt,
+          };
+        }
+        setAllProgress(map);
+        // Mirror to localStorage as offline cache
+        saveToStorage(lsKey, map);
+      })
+      .catch(() => {
+        // Server unreachable — fall back to cached localStorage
+        setAllProgress(loadFromStorage(lsKey));
+      });
+  }, [userId, lsKey]);
 
   const saveProgress = useCallback((
     seriesId: string,
@@ -51,15 +93,25 @@ export const WatchProgressProvider = ({ children }: { children: React.ReactNode 
 
     const key = makeKey(seriesId, episodeId);
 
-    // Episode finished — remove it from Continue Watching
+    // Episode finished — remove from Continue Watching
     if (duration > 0 && timestamp / duration > 0.95) {
       setAllProgress((prev) => {
         if (!prev[key]) return prev;
         const next = { ...prev };
         delete next[key];
-        try { localStorage.setItem(lsKey, JSON.stringify(next)); } catch {}
+        saveToStorage(lsKey, next);
         return next;
       });
+
+      if (userId) {
+        const token = getToken();
+        if (token) {
+          fetch(`${API}/${seriesId}/${episodeId}`, {
+            method: "DELETE",
+            headers: { "x-auth-token": token },
+          }).catch(() => {});
+        }
+      }
       return;
     }
 
@@ -74,10 +126,21 @@ export const WatchProgressProvider = ({ children }: { children: React.ReactNode 
 
     setAllProgress((prev) => {
       const next = { ...prev, [key]: entry };
-      try { localStorage.setItem(lsKey, JSON.stringify(next)); } catch {}
+      saveToStorage(lsKey, next);
       return next;
     });
-  }, [lsKey]);
+
+    if (userId) {
+      const token = getToken();
+      if (token) {
+        fetch(API, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-auth-token": token },
+          body: JSON.stringify({ seriesId, episodeId, timestamp, duration }),
+        }).catch(() => {});
+      }
+    }
+  }, [lsKey, userId]);
 
   const removeProgress = useCallback((seriesId: string, episodeId: number) => {
     const key = makeKey(seriesId, episodeId);
@@ -85,10 +148,20 @@ export const WatchProgressProvider = ({ children }: { children: React.ReactNode 
       if (!prev[key]) return prev;
       const next = { ...prev };
       delete next[key];
-      try { localStorage.setItem(lsKey, JSON.stringify(next)); } catch {}
+      saveToStorage(lsKey, next);
       return next;
     });
-  }, [lsKey]);
+
+    if (userId) {
+      const token = getToken();
+      if (token) {
+        fetch(`${API}/${seriesId}/${episodeId}`, {
+          method: "DELETE",
+          headers: { "x-auth-token": token },
+        }).catch(() => {});
+      }
+    }
+  }, [lsKey, userId]);
 
   const getProgress = useCallback(
     (seriesId: string, episodeId: number): ProgressEntry | null =>

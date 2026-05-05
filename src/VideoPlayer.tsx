@@ -122,6 +122,7 @@ const VideoPlayer = ({ url, title, onClose, initialTimestamp, onProgress, poster
     setVolume(newVolume);
     if (videoRef.current) {
       videoRef.current.volume = newVolume;
+      videoRef.current.muted = newVolume === 0;
       setIsMuted(newVolume === 0);
     }
   };

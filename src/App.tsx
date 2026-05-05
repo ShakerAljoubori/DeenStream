@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
-import { AnimatePresence, LayoutGroup, motion } from "framer-motion";
+import { flushSync } from "react-dom";
+import { AnimatePresence, LayoutGroup } from "framer-motion";
 import gsap from "gsap";
 import Navbar from "./Navbar";
 import Hero from "./Hero";
@@ -45,8 +46,8 @@ function App() {
   // Saved scroll offset so we can restore position after closing the video overlay.
   const savedScrollRef = useRef(0);
 
-  // GSAP page transition curtain
-  const overlayRef = useRef<HTMLDivElement>(null);
+  // GSAP page transition — animates the content wrapper directly
+  const contentRef = useRef<HTMLDivElement>(null);
   const isTransitioningRef = useRef(false);
 
   const { fetchFavorites, clearFavorites } = useFavorites();
@@ -135,20 +136,28 @@ function App() {
     isTransitioningRef.current = true;
     prevPageRef.current = currentPage;
 
-    gsap.timeline({ onComplete: () => { isTransitioningRef.current = false; } })
-      .set(overlayRef.current, { y: "100%" })
-      .to(overlayRef.current, { y: "0%", duration: 0.42, ease: "power3.inOut" })
-      .call(() => {
-        setCurrentPage(page);
-        setSelectedAudioBook(null);
-        setSelectedSeries(null);
-        setInitialEpisodeId(undefined);
-        setInitialTimestamp(undefined);
-        setInitialAudioEpisodeId(undefined);
-        setInitialAudioTimestamp(undefined);
-        window.scrollTo(0, 0);
-      })
-      .to(overlayRef.current, { y: "-100%", duration: 0.42, ease: "power3.inOut", delay: 0.05 });
+    gsap.to(contentRef.current, {
+      opacity: 0,
+      y: -10,
+      duration: 0.18,
+      ease: "power2.in",
+      onComplete: () => {
+        flushSync(() => {
+          setCurrentPage(page);
+          setSelectedAudioBook(null);
+          setSelectedSeries(null);
+          setInitialEpisodeId(undefined);
+          setInitialTimestamp(undefined);
+          setInitialAudioEpisodeId(undefined);
+          setInitialAudioTimestamp(undefined);
+          window.scrollTo(0, 0);
+        });
+        gsap.fromTo(contentRef.current,
+          { opacity: 0, y: 14 },
+          { opacity: 1, y: 0, duration: 0.36, ease: "power3.out", onComplete: () => { isTransitioningRef.current = false; } }
+        );
+      },
+    });
   };
 
   const handleLogout = () => {
@@ -175,94 +184,53 @@ function App() {
         <div className="pl-20">
           <Navbar onSelectSeries={handleOpenVideo} onSelectBook={handleOpenBook} />
 
-          <main className="pb-24">
-            <AnimatePresence>
+          <main className={currentPage === "login" || currentPage === "register" ? "" : "pb-24"}>
+            <div ref={contentRef}>
               {currentPage === "home" && (
-                <motion.div
-                  key="home"
-                  className="pt-4"
-                  initial={
-                    prevPageRef.current === "video"
-                      ? { opacity: 0.6, filter: "blur(10px)" }
-                      : { opacity: 0, filter: "blur(0px)" }
-                  }
-                  animate={{ opacity: 1, filter: "blur(0px)" }}
-                  exit={{ opacity: 0.6, filter: "blur(10px)" }}
-                  transition={{ duration: 0.42, ease: [0.32, 0.72, 0, 1] }}
-                >
+                <div className="pt-4">
                   <Hero onPlay={handleOpenVideo} user={user} />
                   <ContinueWatching onSelectVideo={handleOpenVideo} />
                   <ContinueListening onSelectBook={handleOpenBook} />
                   <SeriesBrowse onSelectSeries={handleOpenVideo} user={user} />
-                </motion.div>
+                </div>
               )}
 
               {currentPage === "login" && (
-                <motion.div
-                  key="login"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.2 }}
-                >
-                  <Login
-                    onSwitch={() => setCurrentPage("register")}
-                    onLogin={(userData: User) => {
-                      setUser(userData);
-                      setUserId(userData.id);
-                      fetchFavorites();
-                      setCurrentPage("home");
-                    }}
-                  />
-                </motion.div>
+                <Login
+                  onSwitch={() => setCurrentPage("register")}
+                  onLogin={(userData: User) => {
+                    setUser(userData);
+                    setUserId(userData.id);
+                    fetchFavorites();
+                    setCurrentPage("home");
+                  }}
+                />
               )}
 
               {currentPage === "register" && (
-                <motion.div
-                  key="register"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.2 }}
-                >
-                  <Register
-                    onSwitch={() => setCurrentPage("login")}
-                    onRegister={(userData: User) => {
-                      setUser(userData);
-                      setUserId(userData.id);
-                      fetchFavorites();
-                      setCurrentPage("home");
-                    }}
-                  />
-                </motion.div>
+                <Register
+                  onSwitch={() => setCurrentPage("login")}
+                  onRegister={(userData: User) => {
+                    setUser(userData);
+                    setUserId(userData.id);
+                    fetchFavorites();
+                    setCurrentPage("home");
+                  }}
+                />
               )}
 
               {currentPage === "favorites" && (
-                <motion.div
-                  key="favorites"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.2 }}
-                >
-                  <Favorites
-                    user={user}
-                    onLogin={() => setCurrentPage("login")}
-                    onRegister={() => setCurrentPage("register")}
-                    onSelectSeries={(seriesId, episodeId) => handleOpenVideo(seriesId, episodeId)}
-                    onSelectBook={(book, episodeId) => handleOpenBook(book.id, episodeId)}
-                  />
-                </motion.div>
+                <Favorites
+                  user={user}
+                  onLogin={() => setCurrentPage("login")}
+                  onRegister={() => setCurrentPage("register")}
+                  onSelectSeries={(seriesId, episodeId) => handleOpenVideo(seriesId, episodeId)}
+                  onSelectBook={(book, episodeId) => handleOpenBook(book.id, episodeId)}
+                />
               )}
 
               {currentPage === "audiobooks" && (
-                <motion.div
-                  key="audiobooks"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.2 }}
-                >
+                <div>
                   {!selectedAudioBook ? (
                     <AudioBooksPage
                       onBack={() => navigateTo("home")}
@@ -278,9 +246,9 @@ function App() {
                       initialTimestamp={initialAudioTimestamp}
                     />
                   )}
-                </motion.div>
+                </div>
               )}
-            </AnimatePresence>
+            </div>
           </main>
         </div>
 
@@ -295,22 +263,19 @@ function App() {
               onBack={() => navigateTo("home")}
               initialEpisodeId={initialEpisodeId}
               initialTimestamp={initialTimestamp}
+              onSelectSeries={(seriesId) => {
+                const next = allSeries.find((s) => s.id === seriesId);
+                if (next) {
+                  setSelectedSeries(next);
+                  setInitialEpisodeId(undefined);
+                  setInitialTimestamp(undefined);
+                }
+              }}
             />
           )}
         </AnimatePresence>
 
         <AudioStickyPlayer />
-
-        {/* GSAP page transition curtain — sweeps up from below, exits through top */}
-        <div
-          ref={overlayRef}
-          className="fixed inset-0 pointer-events-none"
-          style={{
-            zIndex: 9999,
-            transform: "translateY(100%)",
-            background: "linear-gradient(180deg, #080f0c 0%, #0d2318 82%, #16c47f 96%, #22e696 100%)",
-          }}
-        />
       </div>
     </LayoutGroup>
   );

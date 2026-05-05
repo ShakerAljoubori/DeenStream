@@ -1,28 +1,42 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useLayoutEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { IoHeart, IoHeartOutline, IoBookmark, IoBookmarkOutline, IoClose } from "react-icons/io5";
+import gsap from "gsap";
+import {
+  IoHeart, IoHeartOutline, IoBookmark, IoBookmarkOutline, IoClose,
+  IoThumbsUp, IoThumbsUpOutline, IoThumbsDown, IoThumbsDownOutline,
+  IoFlag, IoFlagOutline, IoPaperPlane, IoTrash, IoPencil, IoCheckmark,
+} from "react-icons/io5";
 import VideoPlayer from "./VideoPlayer";
 import { useFavorites } from "./FavoritesContext";
 import { useWatchProgress } from "./WatchProgressContext";
+import { allSeries } from "./data";
 import type { Series, Episode } from "./data";
+
+interface CommentType {
+  _id: string;
+  userId: string;
+  userName: string;
+  text: string;
+  createdAt: string;
+  editedAt?: string;
+  likes: string[];
+  dislikes: string[];
+}
 
 interface VideoDetailsProps {
   series: Series;
-  user: { name: string; email: string } | null;
+  user: { id: string; name: string; email: string } | null;
   onBack: () => void;
   initialEpisodeId?: number;
   initialTimestamp?: number;
+  onSelectSeries?: (seriesId: string) => void;
 }
 
 const SPRING = { type: "spring" as const, stiffness: 300, damping: 30 };
 
 const staggerItem = {
   hidden: { opacity: 0, y: 20 },
-  show: {
-    opacity: 1,
-    y: 0,
-    transition: { type: "spring" as const, stiffness: 300, damping: 30 },
-  },
+  show: { opacity: 1, y: 0, transition: { type: "spring" as const, stiffness: 300, damping: 30 } },
 };
 
 const metaContainer = {
@@ -35,68 +49,27 @@ const listContainer = {
   show: { transition: { staggerChildren: 0.05, delayChildren: 0.3 } },
 };
 
-// Per-episode thumbnail overlay.
-// Shows series thumbnail immediately, then crossfades to the episode-specific
-// static image if it loads (onLoad). If the URL 404s (onError), stays on the
-// series thumbnail. Dismissed via CSS opacity when video starts playing.
-// pointer-events-none so all VideoPlayer controls receive clicks through it.
-function EpisodePoster({
-  thumbnail,
-  fallback,
-  dismissed,
-}: {
-  thumbnail?: string;
-  fallback?: string;
-  dismissed: boolean;
-}) {
+function EpisodePoster({ thumbnail, fallback, dismissed }: { thumbnail?: string; fallback?: string; dismissed: boolean }) {
   const [episodeReady, setEpisodeReady] = useState(false);
-
-  // Reset crossfade state whenever the episode's thumbnail changes
   useEffect(() => { setEpisodeReady(false); }, [thumbnail]);
 
   return (
-    <div
-      className={`absolute inset-0 z-20 pointer-events-none overflow-hidden transition-opacity duration-300 ${
-        dismissed ? "opacity-0" : "opacity-100"
-      }`}
-    >
-      {/* Series thumbnail — instant, always available */}
+    <div className={`absolute inset-0 z-20 pointer-events-none overflow-hidden transition-opacity duration-300 ${dismissed ? "opacity-0" : "opacity-100"}`}>
       {fallback && (
-        <img
-          src={fallback}
-          alt=""
-          className={`absolute inset-0 w-full h-full object-contain transition-opacity duration-500 ${
-            episodeReady ? "opacity-0" : "opacity-100"
-          }`}
-        />
+        <img src={fallback} alt="" className={`absolute inset-0 w-full h-full object-contain transition-opacity duration-500 ${episodeReady ? "opacity-0" : "opacity-100"}`} />
       )}
-
-      {/* Episode thumbnail — crossfades in on successful load, silent on 404 */}
       {thumbnail && (
-        <img
-          src={thumbnail}
-          alt=""
-          className={`absolute inset-0 w-full h-full object-contain transition-opacity duration-500 ${
-            episodeReady ? "opacity-100" : "opacity-0"
-          }`}
-          onLoad={() => setEpisodeReady(true)}
-          onError={() => setEpisodeReady(false)}
-        />
+        <img src={thumbnail} alt="" className={`absolute inset-0 w-full h-full object-contain transition-opacity duration-500 ${episodeReady ? "opacity-100" : "opacity-0"}`} onLoad={() => setEpisodeReady(true)} onError={() => setEpisodeReady(false)} />
       )}
-
-      {/* Play button */}
       <div className="absolute inset-0 flex items-center justify-center">
         <div className="w-20 h-20 bg-[#16C47F] rounded-full flex items-center justify-center shadow-2xl shadow-[#16C47F]/30">
-          <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor" className="text-black ml-1">
-            <path d="M8 5v14l11-7z" />
-          </svg>
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor" className="text-black ml-1"><path d="M8 5v14l11-7z" /></svg>
         </div>
       </div>
     </div>
   );
 }
 
-// Animated equalizer bars shown on the active episode row
 const NowPlayingBars = () => (
   <div className="flex items-end gap-[2.5px] shrink-0" style={{ height: 13, width: 13 }}>
     {[0, 1, 2].map((i) => (
@@ -111,21 +84,47 @@ const NowPlayingBars = () => (
   </div>
 );
 
-function VideoDetailsPage({ series, user, onBack, initialEpisodeId, initialTimestamp }: VideoDetailsProps) {
+function formatRelativeTime(dateStr: string) {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  return `${Math.floor(hrs / 24)}d ago`;
+}
+
+function VideoDetailsPage({ series, user, onBack, initialEpisodeId, initialTimestamp, onSelectSeries }: VideoDetailsProps) {
   const startEpisode = series.episodes.find((e) => e.id === initialEpisodeId) ?? series.episodes[0];
   const [currentEpisode, setCurrentEpisode] = useState<Episode>(startEpisode);
   const [seekTo, setSeekTo] = useState<number | undefined>(initialTimestamp);
   const [durations, setDurations] = useState<{ [key: number]: string }>({});
   const [shouldAutoPlay, setShouldAutoPlay] = useState(!!initialEpisodeId);
+  const [episodePosterDismissed, setEpisodePosterDismissed] = useState(false);
+
+  const [comments, setComments] = useState<CommentType[]>([]);
+  const [commentText, setCommentText] = useState("");
+  const [postingComment, setPostingComment] = useState(false);
+  const [commentsLoading, setCommentsLoading] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editText, setEditText] = useState("");
+  const [savingEdit, setSavingEdit] = useState(false);
+
+  const commentListRef = useRef<HTMLDivElement>(null);
+  const newCommentFlag = useRef(false);
+  const editedCommentIdRef = useRef<string | null>(null);
+
+  const [localReaction, setLocalReaction] = useState<"like" | "dislike" | null>(null);
+  const [reported, setReported] = useState(false);
 
   const activeEpisodeRef = useRef<HTMLDivElement>(null);
-  const [episodePosterDismissed, setEpisodePosterDismissed] = useState(false);
 
   useEffect(() => { setEpisodePosterDismissed(shouldAutoPlay); }, [currentEpisode.id, shouldAutoPlay]);
 
   const { isSeriesFavorite, toggleSeries, isVideoEpisodeSaved, toggleVideoEpisode } = useFavorites();
   const { saveProgress } = useWatchProgress();
   const seriesSaved = isSeriesFavorite(series.id);
+  const episodeBookmarked = isVideoEpisodeSaved(series.id, currentEpisode.id);
 
   const formatTime = (seconds: number) => {
     const hrs = Math.floor(seconds / 3600);
@@ -137,27 +136,154 @@ function VideoDetailsPage({ series, user, onBack, initialEpisodeId, initialTimes
 
   useEffect(() => {
     series.episodes.forEach((ep) => {
-      if (ep.duration) {
-        setDurations((prev) => ({ ...prev, [ep.id]: ep.duration! }));
-        return;
-      }
+      if (ep.duration) { setDurations((prev) => ({ ...prev, [ep.id]: ep.duration! })); return; }
       const video = document.createElement("video");
       video.src = ep.url;
       video.preload = "metadata";
-      video.onloadedmetadata = () => {
-        setDurations((prev) => ({ ...prev, [ep.id]: formatTime(video.duration) }));
-      };
+      video.onloadedmetadata = () => { setDurations((prev) => ({ ...prev, [ep.id]: formatTime(video.duration) })); };
     });
   }, [series]);
 
-  // Scroll active episode into view whenever it changes
   useEffect(() => {
     activeEpisodeRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
   }, [currentEpisode.id]);
 
+  const fetchComments = async () => {
+    setCommentsLoading(true);
+    try {
+      const res = await fetch(`http://localhost:5000/api/comments/${series.id}/${currentEpisode.id}`);
+      if (res.ok) setComments(await res.json());
+    } finally {
+      setCommentsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchComments();
+    setLocalReaction(null);
+    setReported(false);
+  }, [series.id, currentEpisode.id]);
+
+  // GSAP comment animations — runs after every comments state change
+  useLayoutEffect(() => {
+    // ── New comment entrance ──
+    if (newCommentFlag.current && commentListRef.current) {
+      newCommentFlag.current = false;
+      const card    = commentListRef.current.firstElementChild as HTMLElement | null;
+      if (card) {
+        const avatar  = card.querySelector<HTMLElement>(".ca");
+        const body    = card.querySelector<HTMLElement>(".cb");
+        const actions = card.querySelector<HTMLElement>(".cc");
+
+        gsap.set(card,    { opacity: 0, y: -28, scale: 0.9, transformOrigin: "top left", borderRadius: 16 });
+        gsap.set(avatar,  { scale: 0, rotate: -25, transformOrigin: "center" });
+        gsap.set(body,    { opacity: 0, x: -14 });
+        gsap.set(actions, { opacity: 0 });
+
+        gsap.timeline({ defaults: { ease: "power3.out" } })
+          .to(card,    { opacity: 1, y: 0, scale: 1, duration: 0.5, ease: "back.out(1.5)" })
+          .to(avatar,  { scale: 1, rotate: 0, duration: 0.42, ease: "back.out(2.5)" }, "-=0.28")
+          .to(body,    { opacity: 1, x: 0, duration: 0.3 }, "-=0.22")
+          .to(actions, { opacity: 1, duration: 0.2 }, "-=0.1");
+      }
+    }
+
+    // ── Edit confirmation flash ──
+    if (editedCommentIdRef.current && commentListRef.current) {
+      const id = editedCommentIdRef.current;
+      editedCommentIdRef.current = null;
+      const card = commentListRef.current.querySelector<HTMLElement>(`[data-comment-id="${id}"]`);
+      const body = card?.querySelector<HTMLElement>(".cb");
+      if (card && body) {
+        gsap.timeline()
+          .to(card, { scale: 1.02, duration: 0.15, ease: "power2.out" })
+          .to(card, { scale: 1, duration: 0.35, ease: "back.out(2.5)" })
+          .fromTo(body, { color: "rgba(22,196,127,1)" }, { color: "rgba(255,255,255,0.65)", duration: 1, ease: "power2.out" }, "<");
+      }
+    }
+  }, [comments]);
+
+  const postComment = async () => {
+    if (!commentText.trim() || !user || postingComment) return;
+    setPostingComment(true);
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch("http://localhost:5000/api/comments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-auth-token": token! },
+        body: JSON.stringify({ seriesId: series.id, episodeId: currentEpisode.id, text: commentText.trim() }),
+      });
+      if (res.ok) {
+        const newComment = await res.json();
+        newCommentFlag.current = true;
+        setComments((prev) => [newComment, ...prev]);
+        setCommentText("");
+      }
+    } finally {
+      setPostingComment(false);
+    }
+  };
+
+  const deleteComment = (commentId: string) => {
+    const card = commentListRef.current?.querySelector<HTMLElement>(`[data-comment-id="${commentId}"]`);
+
+    const performDelete = async () => {
+      const token = localStorage.getItem("token");
+      const res = await fetch(`http://localhost:5000/api/comments/${commentId}`, {
+        method: "DELETE",
+        headers: { "x-auth-token": token! },
+      });
+      if (res.ok) setComments((prev) => prev.filter((c) => c._id !== commentId));
+    };
+
+    if (card) {
+      gsap.set(card, { height: card.offsetHeight, overflow: "hidden" });
+      gsap.timeline({ onComplete: performDelete })
+        .to(card, { x: -40, opacity: 0, duration: 0.28, ease: "power2.in" })
+        .to(card, { height: 0, marginBottom: 0, paddingTop: 0, paddingBottom: 0, duration: 0.25, ease: "power2.in" }, "-=0.05");
+    } else {
+      performDelete();
+    }
+  };
+
+  const editComment = async (commentId: string) => {
+    if (!editText.trim() || savingEdit) return;
+    setSavingEdit(true);
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch(`http://localhost:5000/api/comments/${commentId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", "x-auth-token": token! },
+        body: JSON.stringify({ text: editText.trim() }),
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        editedCommentIdRef.current = commentId;
+        setComments((prev) => prev.map((c) => (c._id === commentId ? updated : c)));
+        setEditingId(null);
+      }
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
+  const toggleCommentReaction = async (commentId: string, type: "like" | "dislike") => {
+    if (!user) return;
+    const token = localStorage.getItem("token");
+    const res = await fetch(`http://localhost:5000/api/comments/${commentId}/${type}`, {
+      method: "POST",
+      headers: { "x-auth-token": token! },
+    });
+    if (res.ok) {
+      const { likes, dislikes } = await res.json();
+      setComments((prev) => prev.map((c) => (c._id === commentId ? { ...c, likes, dislikes } : c)));
+    }
+  };
+
+  const suggestedSeries = allSeries.filter((s) => s.id !== series.id);
+
   return (
     <>
-      {/* Scrim — click outside to dismiss */}
       <motion.div
         className="fixed inset-0 z-40 bg-black/75 backdrop-blur-sm"
         initial={{ opacity: 0 }}
@@ -167,7 +293,6 @@ function VideoDetailsPage({ series, user, onBack, initialEpisodeId, initialTimes
         onClick={onBack}
       />
 
-      {/* Overlay panel */}
       <motion.div
         className="fixed inset-0 z-50 overflow-y-auto"
         initial={{ opacity: 0 }}
@@ -175,7 +300,6 @@ function VideoDetailsPage({ series, user, onBack, initialEpisodeId, initialTimes
         exit={{ opacity: 0 }}
         transition={{ duration: 0.2 }}
       >
-        {/* Sticky close button */}
         <div className="sticky top-0 z-10 flex justify-end px-6 pt-5 pb-0 pointer-events-none">
           <motion.button
             onClick={onBack}
@@ -185,20 +309,18 @@ function VideoDetailsPage({ series, user, onBack, initialEpisodeId, initialTimes
             transition={{ delay: 0.48, duration: 0.25, ease: "easeOut" }}
             whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.92 }}
-            aria-label="Close"
           >
             <IoClose className="text-lg" />
           </motion.button>
         </div>
 
-        <div className="px-6 md:px-10 pt-4 pb-16 max-w-[1400px] mx-auto">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="pl-24 pr-6 md:pl-28 md:pr-10 pt-4 pb-16 max-w-[1400px] mx-auto">
+          <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-8">
 
-            {/* ── Left column: player + metadata ── */}
-            <div className="lg:col-span-2">
+            {/* ── Left column: video + actions + comments ── */}
+            <div className="min-w-0">
 
-              {/* layoutId bridges thumbnail → player on open/close.
-                  AnimatePresence inside handles the episode-switch crossfade. */}
+              {/* Video player */}
               <motion.div
                 layoutId={`thumb-${series.id}`}
                 className="relative aspect-video bg-black overflow-hidden border border-white/5 shadow-2xl shadow-black/60"
@@ -229,173 +351,340 @@ function VideoDetailsPage({ series, user, onBack, initialEpisodeId, initialTimes
                         saveProgress(series.id, currentEpisode.id, timestamp, duration, snapshot)
                       }
                     />
-                    <EpisodePoster
-                      thumbnail={currentEpisode.thumbnail}
-                      fallback={series.thumbnail}
-                      dismissed={episodePosterDismissed}
-                    />
+                    <EpisodePoster thumbnail={currentEpisode.thumbnail} fallback={series.thumbnail} dismissed={episodePosterDismissed} />
                   </motion.div>
                 </AnimatePresence>
               </motion.div>
 
-              {/* Metadata — staggered after the player spring settles */}
-              <motion.div
-                className="mt-8"
-                variants={metaContainer}
-                initial="hidden"
-                animate="show"
-              >
-                {/* Title row + favorite button */}
-                <motion.div
-                  variants={staggerItem}
-                  className="flex items-start justify-between gap-4"
-                >
-                  <div className="min-w-0">
-                    <h1 className="text-2xl md:text-3xl font-bold text-text-main leading-tight">
-                      {series.title}
-                    </h1>
-                  </div>
+              {/* Metadata + actions + comments */}
+              <motion.div className="mt-6" variants={metaContainer} initial="hidden" animate="show">
 
-                  {user && (
-                    <button
-                      onClick={() => toggleSeries(series.id)}
-                      className={`shrink-0 p-2.5 rounded-xl border transition-all hover:scale-110 active:scale-95 ${
-                        seriesSaved
-                          ? "bg-[#16C47F]/10 border-[#16C47F]/30 text-[#16C47F]"
-                          : "bg-white/5 border-white/10 text-white/40 hover:text-white"
-                      }`}
-                      title={seriesSaved ? "Remove from favorites" : "Save series"}
-                    >
-                      {seriesSaved ? <IoHeart className="text-xl" /> : <IoHeartOutline className="text-xl" />}
-                    </button>
-                  )}
+                {/* Title + meta */}
+                <motion.div variants={staggerItem}>
+                  <h1 className="text-2xl md:text-3xl font-bold text-text-main leading-tight">{series.title}</h1>
+                  <div className="mt-1.5 flex gap-3 text-xs font-medium uppercase tracking-widest">
+                    <span style={{ color: "rgba(22,196,127,0.8)" }}>{series.category}</span>
+                    <span className="text-white/20">|</span>
+                    <span className="text-text-muted">{series.instructor}</span>
+                  </div>
+                </motion.div>
+
+                {/* Action buttons */}
+                <motion.div variants={staggerItem} className="mt-5 flex items-center gap-2.5 flex-wrap">
+
+                  <button
+                    onClick={() => user && toggleSeries(series.id)}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium border transition-all hover:scale-105 active:scale-95 ${
+                      seriesSaved ? "bg-[#16C47F]/10 border-[#16C47F]/30 text-[#16C47F]" : "bg-white/5 border-white/10 text-white/50 hover:text-white hover:border-white/25"
+                    } ${!user ? "opacity-40 cursor-not-allowed" : ""}`}
+                  >
+                    {seriesSaved ? <IoHeart className="text-base" /> : <IoHeartOutline className="text-base" />}
+                    <span>{seriesSaved ? "Saved" : "Favorite"}</span>
+                  </button>
+
+                  <button
+                    onClick={() => user && toggleVideoEpisode(series.id, currentEpisode.id)}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium border transition-all hover:scale-105 active:scale-95 ${
+                      episodeBookmarked ? "bg-[#f5c451]/10 border-[#f5c451]/30 text-[#f5c451]" : "bg-white/5 border-white/10 text-white/50 hover:text-white hover:border-white/25"
+                    } ${!user ? "opacity-40 cursor-not-allowed" : ""}`}
+                  >
+                    {episodeBookmarked ? <IoBookmark className="text-base" /> : <IoBookmarkOutline className="text-base" />}
+                    <span>{episodeBookmarked ? "Bookmarked" : "Bookmark"}</span>
+                  </button>
+
+                  <button
+                    onClick={() => setLocalReaction((prev) => prev === "like" ? null : "like")}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium border transition-all hover:scale-105 active:scale-95 ${
+                      localReaction === "like" ? "bg-blue-500/10 border-blue-500/30 text-blue-400" : "bg-white/5 border-white/10 text-white/50 hover:text-white hover:border-white/25"
+                    }`}
+                  >
+                    {localReaction === "like" ? <IoThumbsUp className="text-base" /> : <IoThumbsUpOutline className="text-base" />}
+                    <span>Like</span>
+                  </button>
+
+                  <button
+                    onClick={() => setLocalReaction((prev) => prev === "dislike" ? null : "dislike")}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium border transition-all hover:scale-105 active:scale-95 ${
+                      localReaction === "dislike" ? "bg-red-500/10 border-red-500/30 text-red-400" : "bg-white/5 border-white/10 text-white/50 hover:text-white hover:border-white/25"
+                    }`}
+                  >
+                    {localReaction === "dislike" ? <IoThumbsDown className="text-base" /> : <IoThumbsDownOutline className="text-base" />}
+                    <span>Dislike</span>
+                  </button>
+
+                  <button
+                    onClick={() => setReported((prev) => !prev)}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium border transition-all hover:scale-105 active:scale-95 ${
+                      reported ? "bg-orange-500/10 border-orange-500/30 text-orange-400 cursor-default" : "bg-white/5 border-white/10 text-white/50 hover:text-red-400 hover:border-red-500/30"
+                    }`}
+                  >
+                    {reported ? <IoFlag className="text-base" /> : <IoFlagOutline className="text-base" />}
+                    <span>{reported ? "Reported" : "Report"}</span>
+                  </button>
                 </motion.div>
 
                 {/* Description */}
-                <motion.p
-                  variants={staggerItem}
-                  className="text-text-muted mt-4 leading-relaxed max-w-3xl"
-                >
+                <motion.p variants={staggerItem} className="text-text-muted mt-5 leading-relaxed text-sm">
                   {series.description}
                 </motion.p>
 
-                {/* Category / instructor */}
-                <motion.div
-                  variants={staggerItem}
-                  className="mt-6 flex gap-4 text-xs font-medium uppercase tracking-widest text-brand-primary"
-                >
-                  <span>{series.category}</span>
-                  <span className="text-white/20">|</span>
-                  <span className="text-text-muted">{series.instructor}</span>
+                {/* Comments */}
+                <motion.div variants={staggerItem} className="mt-10">
+                  <h3 className="text-base font-bold mb-5" style={{ color: "rgba(255,255,255,0.85)" }}>
+                    Comments{" "}
+                    <span className="text-white/30 font-normal text-sm">({comments.length})</span>
+                  </h3>
+
+                  {/* Input */}
+                  {user ? (
+                    <div className="flex gap-3 mb-7">
+                      <div
+                        className="w-9 h-9 rounded-full shrink-0 flex items-center justify-center text-sm font-bold text-black"
+                        style={{ background: "linear-gradient(135deg, #22e696, #16c47f)" }}
+                      >
+                        {user.name[0].toUpperCase()}
+                      </div>
+                      <div className="flex-1 relative">
+                        <input
+                          type="text"
+                          value={commentText}
+                          onChange={(e) => setCommentText(e.target.value)}
+                          onKeyDown={(e) => e.key === "Enter" && postComment()}
+                          placeholder="Add a comment..."
+                          maxLength={1000}
+                          className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 pr-11 text-sm text-white placeholder-white/30 focus:outline-none focus:border-brand-primary/50 transition-colors"
+                        />
+                        <button
+                          onClick={postComment}
+                          disabled={!commentText.trim() || postingComment}
+                          className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1.5 rounded-lg text-brand-primary disabled:opacity-30 hover:bg-brand-primary/10 transition-all"
+                        >
+                          <IoPaperPlane className="text-base" />
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-white/30 text-sm mb-7 italic">Log in to leave a comment.</p>
+                  )}
+
+                  {/* Comment list */}
+                  {commentsLoading ? (
+                    <div className="space-y-5">
+                      {[1, 2, 3].map((i) => (
+                        <div key={i} className="flex gap-3 animate-pulse">
+                          <div className="w-9 h-9 rounded-full bg-white/10 shrink-0" />
+                          <div className="flex-1 space-y-2 pt-1">
+                            <div className="h-2.5 bg-white/10 rounded w-24" />
+                            <div className="h-2.5 bg-white/10 rounded w-3/4" />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : comments.length === 0 ? (
+                    <p className="text-white/20 text-sm italic">No comments yet. Be the first!</p>
+                  ) : (
+                    <div className="space-y-6" ref={commentListRef}>
+                      {comments.map((c) => {
+                        const isOwn    = user?.id === c.userId;
+                        const isEditing = editingId === c._id;
+                        const userLiked    = user ? c.likes.map(String).includes(user.id) : false;
+                        const userDisliked = user ? c.dislikes.map(String).includes(user.id) : false;
+
+                        return (
+                          <div key={c._id} data-comment-id={c._id} className="flex gap-3 group">
+                            {/* Avatar */}
+                            <div
+                              className="ca w-9 h-9 rounded-full shrink-0 flex items-center justify-center text-xs font-bold text-black"
+                              style={{ background: "linear-gradient(135deg, #22e696, #16c47f)" }}
+                            >
+                              {c.userName[0].toUpperCase()}
+                            </div>
+
+                            {/* Body */}
+                            <div className="cb flex-1 min-w-0">
+                              <div className="flex items-baseline gap-2">
+                                <span className="text-sm font-semibold text-white/90">{c.userName}</span>
+                                <span className="text-xs text-white/30">{formatRelativeTime(c.createdAt)}</span>
+                                {c.editedAt && <span className="text-[10px] text-white/20 italic">edited</span>}
+                              </div>
+
+                              {isEditing ? (
+                                <div className="mt-1.5 flex gap-2 items-start">
+                                  <input
+                                    type="text"
+                                    value={editText}
+                                    onChange={(e) => setEditText(e.target.value)}
+                                    onKeyDown={(e) => { if (e.key === "Enter") editComment(c._id); if (e.key === "Escape") setEditingId(null); }}
+                                    maxLength={1000}
+                                    autoFocus
+                                    className="flex-1 bg-white/5 border border-brand-primary/40 rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none"
+                                  />
+                                  <button onClick={() => editComment(c._id)} disabled={savingEdit} className="p-1.5 text-brand-primary hover:bg-brand-primary/10 rounded-lg transition-all disabled:opacity-40">
+                                    <IoCheckmark className="text-base" />
+                                  </button>
+                                  <button onClick={() => setEditingId(null)} className="p-1.5 text-white/30 hover:text-white rounded-lg transition-all">
+                                    <IoClose className="text-base" />
+                                  </button>
+                                </div>
+                              ) : (
+                                <p className="text-sm text-white/65 mt-1 leading-relaxed break-words">{c.text}</p>
+                              )}
+
+                              {/* Like / dislike row */}
+                              {!isEditing && (
+                                <div className="cc flex items-center gap-3 mt-2">
+                                  <button
+                                    onClick={() => toggleCommentReaction(c._id, "like")}
+                                    className={`flex items-center gap-1 text-xs transition-all hover:scale-110 active:scale-95 ${userLiked ? "text-brand-primary" : "text-white/30 hover:text-white/60"}`}
+                                  >
+                                    {userLiked ? <IoThumbsUp className="text-sm" /> : <IoThumbsUpOutline className="text-sm" />}
+                                    {c.likes.length > 0 && <span>{c.likes.length}</span>}
+                                  </button>
+                                  <button
+                                    onClick={() => toggleCommentReaction(c._id, "dislike")}
+                                    className={`flex items-center gap-1 text-xs transition-all hover:scale-110 active:scale-95 ${userDisliked ? "text-red-400" : "text-white/30 hover:text-white/60"}`}
+                                  >
+                                    {userDisliked ? <IoThumbsDown className="text-sm" /> : <IoThumbsDownOutline className="text-sm" />}
+                                    {c.dislikes.length > 0 && <span>{c.dislikes.length}</span>}
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Own-comment actions */}
+                            {isOwn && !isEditing && (
+                              <div className="opacity-0 group-hover:opacity-100 flex gap-0.5 shrink-0 self-start mt-1 transition-all">
+                                <button
+                                  onClick={() => { setEditingId(c._id); setEditText(c.text); }}
+                                  className="p-1.5 text-white/25 hover:text-brand-primary rounded-lg transition-all"
+                                >
+                                  <IoPencil className="text-sm" />
+                                </button>
+                                <button
+                                  onClick={() => deleteComment(c._id)}
+                                  className="p-1.5 text-white/25 hover:text-red-400 rounded-lg transition-all"
+                                >
+                                  <IoTrash className="text-sm" />
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </motion.div>
               </motion.div>
             </div>
 
-            {/* ── Right column: episode list ── */}
-            <motion.div
-              className="rounded-2xl flex flex-col h-[calc(100vh-160px)]"
-              style={{ background: "linear-gradient(180deg, #162318 0%, #111111 100%)", border: "1px solid rgba(22,196,127,0.14)" }}
-              initial={{ opacity: 0, y: 24 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.22, type: "spring", stiffness: 300, damping: 30 }}
-            >
-              <div className="p-6" style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
-                <h2 className="text-xl font-bold">Course Content</h2>
-                <p className="text-xs mt-1 font-medium" style={{ color: "rgba(245,196,81,0.7)" }}>
-                  {series.episodes.length} episodes
-                </p>
-              </div>
+            {/* ── Right column: sticky episode list + suggested ── */}
+            <div className="lg:sticky lg:top-6 lg:self-start space-y-4">
 
+              {/* Episode list */}
               <motion.div
-                className="flex-1 overflow-y-auto p-3 space-y-1"
-                variants={listContainer}
-                initial="hidden"
-                animate="show"
+                className="rounded-2xl flex flex-col overflow-hidden"
+                style={{
+                  background: "linear-gradient(180deg, #162318 0%, #111111 100%)",
+                  border: "1px solid rgba(22,196,127,0.14)",
+                  maxHeight: "52vh",
+                }}
+                initial={{ opacity: 0, y: 24 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.22, type: "spring", stiffness: 300, damping: 30 }}
               >
-                {series.episodes.map((ep) => {
-                  const isActive = currentEpisode.id === ep.id;
-                  const isBookmarked = isVideoEpisodeSaved(series.id, ep.id);
+                <div className="p-4 shrink-0" style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+                  <h2 className="text-base font-bold">Course Content</h2>
+                  <p className="text-xs mt-0.5 font-medium" style={{ color: "rgba(245,196,81,0.7)" }}>
+                    {series.episodes.length} episodes
+                  </p>
+                </div>
 
-                  return (
-                    <motion.div
-                      key={ep.id}
-                      ref={isActive ? activeEpisodeRef : null}
-                      variants={staggerItem}
-                      className="relative rounded-xl"
-                    >
-                      {/* Single layoutId pill that physically slides between rows */}
-                      {isActive && (
-                        <motion.div
-                          layoutId="active-episode-bg"
-                          className="absolute inset-0 rounded-xl bg-brand-primary/10 border border-brand-primary/50"
-                          transition={SPRING}
-                        />
-                      )}
+                <motion.div
+                  className="overflow-y-auto flex-1 p-2 space-y-1"
+                  variants={listContainer}
+                  initial="hidden"
+                  animate="show"
+                >
+                  {series.episodes.map((ep) => {
+                    const isActive = currentEpisode.id === ep.id;
+                    const isBookmarked = isVideoEpisodeSaved(series.id, ep.id);
 
-                      <button
-                        onClick={() => { setCurrentEpisode(ep); setSeekTo(undefined); setShouldAutoPlay(true); }}
-                        className="relative z-10 w-full text-left p-3.5 flex items-center gap-3 rounded-xl"
-                      >
-                        {/* Episode number */}
-                        <span
-                          className={`shrink-0 text-[10px] font-mono tabular-nums w-5 text-center transition-colors duration-300 ${
-                            isActive ? "text-brand-primary" : "text-white/25"
-                          }`}
+                    return (
+                      <motion.div key={ep.id} ref={isActive ? activeEpisodeRef : null} variants={staggerItem} className="relative rounded-xl">
+                        {isActive && (
+                          <motion.div layoutId="active-episode-bg" className="absolute inset-0 rounded-xl bg-brand-primary/10 border border-brand-primary/50" transition={SPRING} />
+                        )}
+                        <button
+                          onClick={() => { setCurrentEpisode(ep); setSeekTo(undefined); setShouldAutoPlay(true); }}
+                          className="relative z-10 w-full text-left p-3 flex items-center gap-2.5 rounded-xl"
                         >
-                          {String(ep.id).padStart(2, "0")}
-                        </span>
-
-                        {/* Title */}
-                        <span
-                          className={`flex-1 text-sm font-medium truncate transition-colors duration-300 ${
-                            isActive ? "text-brand-primary" : "text-text-muted"
-                          }`}
-                        >
-                          {ep.title}
-                        </span>
-
-                        {/* Equalizer bars — fade in on active, fade out on switch */}
-                        <AnimatePresence>
-                          {isActive && (
-                            <motion.span
-                              className="shrink-0"
-                              initial={{ opacity: 0, scale: 0.6 }}
-                              animate={{ opacity: 1, scale: 1 }}
-                              exit={{ opacity: 0, scale: 0.6 }}
-                              transition={{ duration: 0.2, ease: "easeOut" }}
-                            >
-                              <NowPlayingBars />
-                            </motion.span>
-                          )}
-                        </AnimatePresence>
-
-                        {/* Duration + bookmark */}
-                        <div className="flex items-center gap-2 shrink-0">
-                          <span className="text-[10px] font-mono text-white/25 tabular-nums">
-                            {durations[ep.id] || "—"}
+                          <span className={`shrink-0 text-[10px] font-mono tabular-nums w-5 text-center transition-colors duration-300 ${isActive ? "text-brand-primary" : "text-white/25"}`}>
+                            {String(ep.id).padStart(2, "0")}
                           </span>
-                          {user && (
-                            <span
-                              role="button"
-                              onClick={(e) => { e.stopPropagation(); toggleVideoEpisode(series.id, ep.id); }}
-                              className={`transition-all hover:scale-110 active:scale-95 cursor-pointer ${
-                                isBookmarked ? "text-[#16C47F]" : "text-white/30 hover:text-white/70"
-                              }`}
-                              title={isBookmarked ? "Remove bookmark" : "Bookmark episode"}
-                            >
-                              {isBookmarked
-                                ? <IoBookmark className="text-sm" />
-                                : <IoBookmarkOutline className="text-sm" />}
-                            </span>
-                          )}
+                          <span className={`flex-1 text-xs font-medium truncate transition-colors duration-300 ${isActive ? "text-brand-primary" : "text-text-muted"}`}>
+                            {ep.title}
+                          </span>
+                          <AnimatePresence>
+                            {isActive && (
+                              <motion.span className="shrink-0" initial={{ opacity: 0, scale: 0.6 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.6 }} transition={{ duration: 0.2 }}>
+                                <NowPlayingBars />
+                              </motion.span>
+                            )}
+                          </AnimatePresence>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <span className="text-[10px] font-mono text-white/25 tabular-nums">{durations[ep.id] || "—"}</span>
+                            {user && (
+                              <span
+                                role="button"
+                                onClick={(e) => { e.stopPropagation(); toggleVideoEpisode(series.id, ep.id); }}
+                                className={`transition-all hover:scale-110 active:scale-95 cursor-pointer ${isBookmarked ? "text-[#16C47F]" : "text-white/30 hover:text-white/70"}`}
+                              >
+                                {isBookmarked ? <IoBookmark className="text-xs" /> : <IoBookmarkOutline className="text-xs" />}
+                              </span>
+                            )}
+                          </div>
+                        </button>
+                      </motion.div>
+                    );
+                  })}
+                </motion.div>
+              </motion.div>
+
+              {/* Suggested videos */}
+              {suggestedSeries.length > 0 && (
+                <motion.div
+                  className="rounded-2xl overflow-hidden"
+                  style={{ background: "linear-gradient(180deg, #162318 0%, #111111 100%)", border: "1px solid rgba(22,196,127,0.14)" }}
+                  initial={{ opacity: 0, y: 24 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.32, type: "spring", stiffness: 300, damping: 30 }}
+                >
+                  <div className="p-4 shrink-0" style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+                    <h2 className="text-base font-bold">Suggested</h2>
+                  </div>
+                  <div className="p-2 space-y-1">
+                    {suggestedSeries.map((s) => (
+                      <button
+                        key={s.id}
+                        onClick={() => onSelectSeries?.(s.id)}
+                        className="w-full flex items-center gap-3 p-2.5 rounded-xl hover:bg-white/5 transition-colors text-left group"
+                      >
+                        <img
+                          src={s.thumbnail}
+                          alt={s.title}
+                          className="w-16 h-10 object-cover rounded-lg shrink-0 opacity-75 group-hover:opacity-100 transition-opacity"
+                        />
+                        <div className="min-w-0 flex-1">
+                          <p className="text-xs font-medium text-white/75 group-hover:text-white truncate transition-colors leading-snug">{s.title}</p>
+                          <p className="text-[10px] text-white/30 mt-0.5 truncate">{s.instructor} · {s.episodes.length} ep</p>
                         </div>
                       </button>
-                    </motion.div>
-                  );
-                })}
-              </motion.div>
-            </motion.div>
+                    ))}
+                  </div>
+                </motion.div>
+              )}
 
+            </div>
           </div>
         </div>
       </motion.div>

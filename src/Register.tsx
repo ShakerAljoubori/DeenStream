@@ -41,8 +41,11 @@ const Register = ({ onSwitch, onRegister }: RegisterProps) => {
 
   return (
     <div
-      className="min-h-screen flex items-center justify-center px-4"
+      className="relative flex items-center justify-center px-4"
       style={{
+        minHeight: "100vh",
+        paddingTop: "5rem",
+        paddingBottom: "5rem",
         background: "linear-gradient(180deg, #091a10 0%, #080f0b 45%, #080808 100%)",
       }}
     >
@@ -50,7 +53,7 @@ const Register = ({ onSwitch, onRegister }: RegisterProps) => {
       <div className="absolute inset-0 pointer-events-none" style={{ background: "radial-gradient(ellipse 60% 45% at 50% 20%, rgba(22, 196, 127, 0.07) 0%, transparent 70%)" }} />
 
       <div
-        className="relative w-full max-w-md p-10 rounded-2xl space-y-8"
+        className="relative w-full max-w-sm p-5 sm:p-6 rounded-2xl space-y-3 sm:space-y-4"
         style={{
           background: "linear-gradient(145deg, #1a2e22, #131a16 50%, #111111) padding-box, linear-gradient(135deg, rgba(22,196,127,0.5), rgba(245,196,81,0.35)) border-box",
           border: "1px solid transparent",
@@ -61,21 +64,21 @@ const Register = ({ onSwitch, onRegister }: RegisterProps) => {
         <div className="absolute top-0 left-8 right-8 h-px" style={{ background: "linear-gradient(90deg, transparent, rgba(22,196,127,0.6), transparent)" }} />
 
         <div className="text-center">
-          <div className="inline-block mb-4 font-black text-3xl" style={{ background: "linear-gradient(135deg, #16c47f 0%, #f5c451 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>DS</div>
-          <h2 className="text-3xl font-bold text-white tracking-tight">Create Account</h2>
-          <p className="mt-2 text-sm text-white/40">Join the community and start learning today</p>
+          <div className="inline-block mb-1 font-black text-xl" style={{ background: "linear-gradient(135deg, #16c47f 0%, #f5c451 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>DS</div>
+          <h2 className="text-xl font-bold text-white tracking-tight">Create Account</h2>
+          <p className="mt-1 text-xs text-white/40">Join the community and start learning today</p>
         </div>
 
-        <form className="space-y-6" onSubmit={handleSubmit}>
-          <div className="space-y-4">
+        <form className="space-y-3" onSubmit={handleSubmit}>
+          <div className="space-y-2">
             <div>
-              <label className="block text-xs font-medium text-white/60 uppercase tracking-wider mb-2">
+              <label className="block text-xs font-medium text-white/60 uppercase tracking-wider mb-1">
                 Full Name
               </label>
               <input
                 type="text"
                 required
-                className="w-full rounded-xl px-4 py-3 text-white focus:outline-none transition-all"
+                className="w-full rounded-xl px-3 py-2 text-sm text-white focus:outline-none transition-all"
                 style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(22,196,127,0.15)" }}
                 placeholder="John Doe"
                 onFocus={e => (e.currentTarget.style.borderColor = "rgba(22,196,127,0.5)")}
@@ -84,13 +87,13 @@ const Register = ({ onSwitch, onRegister }: RegisterProps) => {
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-white/60 uppercase tracking-wider mb-2">
+              <label className="block text-xs font-medium text-white/60 uppercase tracking-wider mb-1">
                 Email Address
               </label>
               <input
                 type="email"
                 required
-                className="w-full rounded-xl px-4 py-3 text-white focus:outline-none transition-all"
+                className="w-full rounded-xl px-3 py-2 text-sm text-white focus:outline-none transition-all"
                 style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(22,196,127,0.15)" }}
                 placeholder="name@example.com"
                 onFocus={e => (e.currentTarget.style.borderColor = "rgba(22,196,127,0.5)")}
@@ -99,13 +102,13 @@ const Register = ({ onSwitch, onRegister }: RegisterProps) => {
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-white/60 uppercase tracking-wider mb-2">
+              <label className="block text-xs font-medium text-white/60 uppercase tracking-wider mb-1">
                 Password
               </label>
               <input
                 type="password"
                 required
-                className="w-full rounded-xl px-4 py-3 text-white focus:outline-none transition-all"
+                className="w-full rounded-xl px-3 py-2 text-sm text-white focus:outline-none transition-all"
                 style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(22,196,127,0.15)" }}
                 placeholder="••••••••"
                 onFocus={e => (e.currentTarget.style.borderColor = "rgba(22,196,127,0.5)")}
@@ -116,14 +119,14 @@ const Register = ({ onSwitch, onRegister }: RegisterProps) => {
           </div>
 
           {error && (
-            <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
+            <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs">
               <span className="shrink-0">✕</span>
               <span>{error}</span>
             </div>
           )}
 
           {success && (
-            <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-[#16C47F]/10 border border-[#16C47F]/20 text-[#16C47F] text-sm">
+            <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-[#16C47F]/10 border border-[#16C47F]/20 text-[#16C47F] text-xs">
               <span className="shrink-0">✓</span>
               <span>{success}</span>
             </div>
@@ -132,14 +135,14 @@ const Register = ({ onSwitch, onRegister }: RegisterProps) => {
           <button
             type="submit"
             disabled={loading}
-            className="w-full text-black font-bold py-3 rounded-xl active:scale-[0.98] transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+            className="w-full text-black font-bold py-2 rounded-xl active:scale-[0.98] transition-all disabled:opacity-60 disabled:cursor-not-allowed"
             style={{ background: "linear-gradient(135deg, #22e696 0%, #16c47f 60%, #0db36e 100%)", boxShadow: "0 4px 24px rgba(22, 196, 127, 0.35)" }}
           >
             {loading ? "Creating account…" : "Create Account"}
           </button>
         </form>
 
-        <p className="text-center text-sm text-white/40">
+        <p className="text-center text-xs text-white/40">
           Already have an account?{" "}
           <button onClick={onSwitch} className="text-[#16C47F] hover:underline font-medium">
             Sign in
