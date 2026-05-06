@@ -6,7 +6,7 @@ import { HiOutlineUserCircle } from "react-icons/hi";
 import { useAudioPlayer } from "./AudioPlayerContext";
 
 interface SidebarProps {
-  onNavigate: (page: "home" | "audiobooks" | "login" | "register" | "favorites") => void;
+  onNavigate: (page: "home" | "audiobooks" | "login" | "register" | "favorites" | "settings") => void;
   currentPage: string;
   user: { name: string; email: string } | null;
   onLogout: () => void;
@@ -21,11 +21,111 @@ const POPUP_STYLE = {
   border: "1px solid rgba(22, 196, 127, 0.18)",
 };
 
+const POPUP_MOTION = {
+  initial: { opacity: 0, scale: 0.94, y: 6 },
+  animate: { opacity: 1, scale: 1, y: 0 },
+  exit:    { opacity: 0, scale: 0.94, y: 6 },
+  transition: { type: "spring", stiffness: 380, damping: 26 },
+} as const;
+
+function PopupContent({
+  user,
+  onNavigate,
+  onLogout,
+  close,
+}: {
+  user: { name: string; email: string } | null;
+  onNavigate: SidebarProps["onNavigate"];
+  onLogout: () => void;
+  close: () => void;
+}) {
+  const [confirming, setConfirming] = useState(false);
+
+  const spring = { type: "spring", stiffness: 380, damping: 28 } as const;
+  const fastExit = { duration: 0.07 };
+
+  return (
+    <AnimatePresence mode="wait" initial={false}>
+      {confirming ? (
+        <motion.div
+          key="confirm"
+          initial={{ opacity: 0, x: 12 }}
+          animate={{ opacity: 1, x: 0, transition: spring }}
+          exit={{ opacity: 0, transition: fastExit }}
+          className="px-4 py-3"
+        >
+          <p className="text-sm font-bold text-white mb-0.5">Sign out?</p>
+          <p className="text-xs text-white/40 mb-3">You'll need to log in again.</p>
+          <div className="flex gap-2">
+            <button
+              className="flex-1 py-1.5 rounded-lg text-xs font-bold text-white/60 hover:bg-white/5 transition-colors border border-white/10"
+              onClick={() => setConfirming(false)}
+            >
+              Cancel
+            </button>
+            <button
+              className="flex-1 py-1.5 rounded-lg text-xs font-bold text-red-400 hover:bg-red-500/15 transition-colors border border-red-500/20"
+              onClick={() => { onLogout(); close(); setConfirming(false); }}
+            >
+              Sign Out
+            </button>
+          </div>
+        </motion.div>
+      ) : user ? (
+        <motion.div
+          key="logged-in"
+          initial={{ opacity: 0, y: -6 }}
+          animate={{ opacity: 1, y: 0, transition: spring }}
+          exit={{ opacity: 0, transition: fastExit }}
+        >
+          <div className="px-4 py-3 border-b border-white/5">
+            <p className="text-sm font-bold text-white truncate">{user.name}</p>
+            <p className="text-xs text-white/40 truncate">{user.email}</p>
+          </div>
+          <button
+            className="w-full text-left px-4 py-2 text-sm text-white/70 hover:bg-white/5 transition-colors"
+            onClick={() => { onNavigate("settings"); close(); }}
+          >
+            Settings
+          </button>
+          <button
+            className="w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-red-500/10 transition-colors"
+            onClick={() => setConfirming(true)}
+          >
+            Sign Out
+          </button>
+        </motion.div>
+      ) : (
+        <motion.div
+          key="logged-out"
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0, transition: spring }}
+          exit={{ opacity: 0, transition: fastExit }}
+        >
+          <button
+            className="w-full text-left px-4 py-2 text-sm text-white/80 hover:bg-brand-primary/20 hover:text-brand-primary transition-colors"
+            onClick={() => { onNavigate("login"); close(); }}
+          >
+            Login
+          </button>
+          <button
+            className="w-full text-left px-4 py-2 text-sm text-white/80 hover:bg-brand-primary/20 hover:text-brand-primary transition-colors"
+            onClick={() => { onNavigate("register"); close(); }}
+          >
+            Register
+          </button>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
+
 function Sidebar({ onNavigate, currentPage, user, onLogout }: SidebarProps) {
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const mobileMenuRef = useRef<HTMLDivElement>(null);
   const { currentBook, currentEpisode } = useAudioPlayer();
+  const close = () => setShowProfileMenu(false);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -37,51 +137,6 @@ function Sidebar({ onNavigate, currentPage, user, onLogout }: SidebarProps) {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
-
-  const ProfilePopup = () => (
-    <AnimatePresence>
-      {showProfileMenu && (
-        <motion.div
-          className="absolute z-[120] w-48 rounded-2xl shadow-2xl py-2 overflow-hidden"
-          style={POPUP_STYLE}
-          initial={{ opacity: 0, scale: 0.94 }}
-          animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0, scale: 0.94 }}
-          transition={{ type: "spring", stiffness: 380, damping: 26 }}
-        >
-          {user ? (
-            <>
-              <div className="px-4 py-3 border-b border-white/5">
-                <p className="text-sm font-bold text-white truncate">{user.name}</p>
-                <p className="text-xs text-white/40 truncate">{user.email}</p>
-              </div>
-              <button
-                className="w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-red-500/10 transition-colors"
-                onClick={() => { onLogout(); setShowProfileMenu(false); }}
-              >
-                Sign Out
-              </button>
-            </>
-          ) : (
-            <>
-              <button
-                className="w-full text-left px-4 py-2 text-sm text-white/80 hover:bg-brand-primary/20 hover:text-brand-primary transition-colors"
-                onClick={() => { onNavigate("login"); setShowProfileMenu(false); }}
-              >
-                Login
-              </button>
-              <button
-                className="w-full text-left px-4 py-2 text-sm text-white/80 hover:bg-brand-primary/20 hover:text-brand-primary transition-colors"
-                onClick={() => { onNavigate("register"); setShowProfileMenu(false); }}
-              >
-                Register
-              </button>
-            </>
-          )}
-        </motion.div>
-      )}
-    </AnimatePresence>
-  );
 
   return (
     <>
@@ -156,8 +211,19 @@ function Sidebar({ onNavigate, currentPage, user, onLogout }: SidebarProps) {
         </nav>
 
         <div className="relative" ref={menuRef}>
-          <div style={{ position: "absolute", bottom: "100%", left: "64px", marginBottom: "8px" }}>
-            <ProfilePopup />
+          {/* Desktop popup — inlined so AnimatePresence is never remounted */}
+          <div style={{ position: "absolute", bottom: "0", left: "64px" }}>
+            <AnimatePresence>
+              {showProfileMenu && (
+                <motion.div
+                  className="absolute bottom-0 z-[120] w-48 rounded-2xl shadow-2xl py-2 overflow-hidden"
+                  style={POPUP_STYLE}
+                  {...POPUP_MOTION}
+                >
+                  <PopupContent user={user} onNavigate={onNavigate} onLogout={onLogout} close={close} />
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
 
           <motion.div
@@ -214,8 +280,19 @@ function Sidebar({ onNavigate, currentPage, user, onLogout }: SidebarProps) {
         </button>
 
         <div className="relative" ref={mobileMenuRef}>
+          {/* Mobile popup — inlined so AnimatePresence is never remounted */}
           <div className="absolute bottom-full right-0 mb-2">
-            <ProfilePopup />
+            <AnimatePresence>
+              {showProfileMenu && (
+                <motion.div
+                  className="absolute bottom-0 right-0 z-[120] w-48 rounded-2xl shadow-2xl py-2 overflow-hidden"
+                  style={POPUP_STYLE}
+                  {...POPUP_MOTION}
+                >
+                  <PopupContent user={user} onNavigate={onNavigate} onLogout={onLogout} close={close} />
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
           <button
             onClick={() => setShowProfileMenu(!showProfileMenu)}

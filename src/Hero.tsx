@@ -29,7 +29,7 @@ function Hero({ onPlay, user }: HeroProps) {
       {/* Top fade */}
       <div className="absolute inset-0 z-10" style={{ background: "linear-gradient(to bottom, rgba(8,8,8,0.4) 0%, transparent 30%)" }} />
 
-      <div className="relative z-20 max-w-2xl mt-12">
+      <div className="relative z-20 max-w-2xl mt-28">
 
         {/* Featured badge — gold */}
         <div className="inline-flex items-center gap-1.5 px-3 py-1 mb-6 rounded-full" style={{ background: "rgba(245,196,81,0.1)", border: "1px solid rgba(245,196,81,0.3)" }}>

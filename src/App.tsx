@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { flushSync } from "react-dom";
-import { AnimatePresence, LayoutGroup } from "framer-motion";
+import { motion, AnimatePresence, LayoutGroup } from "framer-motion";
 import gsap from "gsap";
 import Navbar from "./Navbar";
 import Hero from "./Hero";
@@ -15,12 +15,13 @@ import AudioStickyPlayer from "./AudioStickyPlayer";
 import Login from "./Login";
 import Register from "./Register";
 import Favorites from "./Favorites";
+import SettingsPage from "./SettingsPage";
 import { useFavorites } from "./FavoritesContext";
 import { useAuth } from "./AuthContext";
 import { allSeries, allAudioBooks } from "./data";
 import type { Series, AudioBook } from "./data";
 
-type Page = "home" | "video" | "audiobooks" | "login" | "register" | "favorites";
+type Page = "home" | "video" | "audiobooks" | "login" | "register" | "favorites" | "settings";
 
 interface User {
   id: string;
@@ -38,6 +39,7 @@ function App() {
   const [initialAudioTimestamp, setInitialAudioTimestamp] = useState<number | undefined>();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [signedOutToast, setSignedOutToast] = useState(false);
 
   // Tracks what page we came FROM so the home page knows whether to
   // start blurred (returning from video) or faded (fresh load / other page).
@@ -127,6 +129,24 @@ function App() {
     setInitialAudioTimestamp(undefined);
   };
 
+  const runPageTransition = (
+    exitVars: gsap.TweenVars,
+    enterFrom: gsap.TweenVars,
+    enterTo: gsap.TweenVars,
+    onMid: () => void
+  ) => {
+    gsap.to(contentRef.current, {
+      ...exitVars,
+      onComplete: () => {
+        flushSync(onMid);
+        gsap.fromTo(contentRef.current, enterFrom, {
+          ...enterTo,
+          onComplete: () => { isTransitioningRef.current = false; },
+        });
+      },
+    });
+  };
+
   const navigateTo = (page: Page) => {
     if (page === currentPage && !selectedAudioBook) return;
 
@@ -159,28 +179,48 @@ function App() {
     isTransitioningRef.current = true;
     prevPageRef.current = currentPage;
 
-    gsap.to(contentRef.current, {
-      opacity: 0,
-      y: -10,
-      duration: 0.18,
-      ease: "power2.in",
-      onComplete: () => {
-        flushSync(() => {
-          setCurrentPage(page);
-          setSelectedAudioBook(null);
-          setSelectedSeries(null);
-          setInitialEpisodeId(undefined);
-          setInitialTimestamp(undefined);
-          setInitialAudioEpisodeId(undefined);
-          setInitialAudioTimestamp(undefined);
-          window.scrollTo(0, 0);
-        });
-        gsap.fromTo(contentRef.current,
-          { opacity: 0, y: 14 },
-          { opacity: 1, y: 0, duration: 0.36, ease: "power3.out", onComplete: () => { isTransitioningRef.current = false; } }
-        );
-      },
+    const toSettings = page === "settings";
+    const fromSettings = currentPage === "settings";
+
+    // Settings: horizontal slide (right-panel feel). Default: vertical fade.
+    const exitVars = toSettings
+      ? { opacity: 0, x: -24, duration: 0.2, ease: "power2.in" }
+      : fromSettings
+        ? { opacity: 0, x: 24, duration: 0.2, ease: "power2.in" }
+        : { opacity: 0, y: -10, duration: 0.18, ease: "power2.in" };
+
+    const enterFrom = toSettings
+      ? { opacity: 0, x: 48 }
+      : fromSettings
+        ? { opacity: 0, x: -24 }
+        : { opacity: 0, y: 14 };
+
+    const enterTo = toSettings || fromSettings
+      ? { opacity: 1, x: 0, duration: 0.38, ease: "power3.out" }
+      : { opacity: 1, y: 0, duration: 0.36, ease: "power3.out" };
+
+    runPageTransition(exitVars, enterFrom, enterTo, () => {
+      setCurrentPage(page);
+      setSelectedAudioBook(null);
+      setSelectedSeries(null);
+      setInitialEpisodeId(undefined);
+      setInitialTimestamp(undefined);
+      setInitialAudioEpisodeId(undefined);
+      setInitialAudioTimestamp(undefined);
+      window.scrollTo(0, 0);
     });
+  };
+
+  const handleUserUpdate = (updated: User) => {
+    setUser(updated);
+  };
+
+  const handleDeleteAccount = () => {
+    localStorage.removeItem("token");
+    setUser(null);
+    setUserId(null);
+    clearFavorites();
+    setCurrentPage("home");
   };
 
   const handleLogout = () => {
@@ -189,6 +229,8 @@ function App() {
     setUserId(null);
     clearFavorites();
     setCurrentPage("home");
+    setSignedOutToast(true);
+    setTimeout(() => setSignedOutToast(false), 3000);
   };
 
   if (loading) return <div className="min-h-screen bg-app-bg" />;
@@ -222,10 +264,19 @@ function App() {
                 <Login
                   onSwitch={() => setCurrentPage("register")}
                   onLogin={(userData: User) => {
-                    setUser(userData);
-                    setUserId(userData.id);
-                    fetchFavorites();
-                    setCurrentPage("home");
+                    isTransitioningRef.current = true;
+                    runPageTransition(
+                      { opacity: 0, scale: 0.96, duration: 0.22, ease: "power2.in" },
+                      { opacity: 0, scale: 1.04 },
+                      { opacity: 1, scale: 1, duration: 0.5, ease: "power3.out" },
+                      () => {
+                        setUser(userData);
+                        setUserId(userData.id);
+                        fetchFavorites();
+                        setCurrentPage("home");
+                        window.scrollTo(0, 0);
+                      }
+                    );
                   }}
                 />
               )}
@@ -234,10 +285,19 @@ function App() {
                 <Register
                   onSwitch={() => setCurrentPage("login")}
                   onRegister={(userData: User) => {
-                    setUser(userData);
-                    setUserId(userData.id);
-                    fetchFavorites();
-                    setCurrentPage("home");
+                    isTransitioningRef.current = true;
+                    runPageTransition(
+                      { opacity: 0, scale: 0.96, duration: 0.22, ease: "power2.in" },
+                      { opacity: 0, scale: 1.04 },
+                      { opacity: 1, scale: 1, duration: 0.5, ease: "power3.out" },
+                      () => {
+                        setUser(userData);
+                        setUserId(userData.id);
+                        fetchFavorites();
+                        setCurrentPage("home");
+                        window.scrollTo(0, 0);
+                      }
+                    );
                   }}
                 />
               )}
@@ -257,6 +317,15 @@ function App() {
                   onBack={() => navigateTo("home")}
                   onSelectBook={(book) => handleOpenBook(book.id)}
                   user={user}
+                />
+              )}
+
+              {currentPage === "settings" && user && (
+                <SettingsPage
+                  user={user}
+                  onBack={() => navigateTo("home")}
+                  onUserUpdate={handleUserUpdate}
+                  onDeleteAccount={handleDeleteAccount}
                 />
               )}
             </div>
@@ -301,6 +370,35 @@ function App() {
         </AnimatePresence>
 
         <AudioStickyPlayer />
+
+        {/* Sign-out confirmation toast */}
+        <AnimatePresence>
+          {signedOutToast && (
+            <motion.div
+              className="fixed bottom-10 left-0 right-0 mx-auto w-fit z-[300] flex items-center gap-3 px-5 py-3 rounded-2xl shadow-2xl pointer-events-none"
+              style={{
+                background: "linear-gradient(145deg, #1a2e22 0%, #0f1a12 100%)",
+                border: "1px solid rgba(22, 196, 127, 0.35)",
+                boxShadow: "0 8px 32px rgba(0,0,0,0.5), 0 0 0 1px rgba(22,196,127,0.1)",
+              }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.25, ease: "easeOut" }}
+            >
+              <div
+                className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0"
+                style={{ background: "rgba(22,196,127,0.15)", border: "1px solid #16c47f" }}
+              >
+                <span style={{ color: "#16c47f", fontSize: "11px", fontWeight: 900 }}>✓</span>
+              </div>
+              <div>
+                <p className="text-sm font-bold text-white leading-none mb-0.5">Signed out</p>
+                <p className="text-xs text-white/40">See you next time</p>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </LayoutGroup>
   );

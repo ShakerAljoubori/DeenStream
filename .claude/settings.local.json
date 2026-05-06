@@ -16,7 +16,8 @@
       "PowerShell(Get-ChildItem \"C:\\\\Users\\\\Shaker\\\\Documents\" -Directory | ForEach-Object { $_.Name })",
       "PowerShell(Get-ChildItem \"C:\\\\Users\\\\Shaker\\\\Documents\\\\DeenStream\" | ForEach-Object { $_.Name }')",
       "Bash(Select-Object FullName)",
-      "PowerShell(Get-ChildItem \"C:\\\\Users\\\\Shaker\\\\Documents\\\\Obsidian-Vault\\\\DeenStream\" | ForEach-Object { $_.FullName })"
+      "PowerShell(Get-ChildItem \"C:\\\\Users\\\\Shaker\\\\Documents\\\\Obsidian-Vault\\\\DeenStream\" | ForEach-Object { $_.FullName })",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\Shaker\\\\Documents\" -Directory)"
     ]
   }
 }

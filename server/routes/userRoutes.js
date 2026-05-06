@@ -1,6 +1,9 @@
 const express = require('express');
 const router = express.Router();
-const User = require('../models/user'); // Ensure this path matches your folder structure
+const User = require('../models/user');
+const WatchProgress = require('../models/WatchProgress');
+const AudioProgress = require('../models/AudioProgress');
+const Comment = require('../models/Comment');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 
@@ -190,6 +193,80 @@ router.post('/favorites/episodes/audio', auth, async (req, res) => {
     );
     const updated = await User.findById(req.user.id).select('favorites');
     res.json(updated.favorites);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// UPDATE DISPLAY NAME
+router.put('/profile', auth, async (req, res) => {
+  try {
+    const { name } = req.body;
+    if (!name || name.trim().length < 2)
+      return res.status(400).json({ msg: 'Name must be at least 2 characters' });
+    const user = await User.findByIdAndUpdate(
+      req.user.id,
+      { name: name.trim() },
+      { new: true }
+    ).select('-password');
+    res.json({ id: user._id, name: user.name, email: user.email });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// CHANGE PASSWORD
+router.put('/password', auth, async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    if (!newPassword || newPassword.length < 6)
+      return res.status(400).json({ msg: 'New password must be at least 6 characters' });
+    const user = await User.findById(req.user.id);
+    const isMatch = await bcrypt.compare(currentPassword, user.password);
+    if (!isMatch) return res.status(400).json({ msg: 'Current password is incorrect' });
+    const salt = await bcrypt.genSalt(10);
+    user.password = await bcrypt.hash(newPassword, salt);
+    await user.save();
+    res.json({ msg: 'Password updated' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// CHANGE EMAIL
+router.put('/email', auth, async (req, res) => {
+  try {
+    const { newEmail, currentPassword } = req.body;
+    if (!newEmail || !newEmail.trim())
+      return res.status(400).json({ msg: 'Email is required' });
+    const user = await User.findById(req.user.id);
+    const isMatch = await bcrypt.compare(currentPassword, user.password);
+    if (!isMatch) return res.status(400).json({ msg: 'Current password is incorrect' });
+    const existing = await User.findOne({ email: newEmail.trim().toLowerCase() });
+    if (existing) return res.status(400).json({ msg: 'Email already in use' });
+    user.email = newEmail.trim().toLowerCase();
+    await user.save();
+    res.json({ id: user._id, name: user.name, email: user.email });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// DELETE ACCOUNT
+router.delete('/account', auth, async (req, res) => {
+  try {
+    const { currentPassword } = req.body;
+    const user = await User.findById(req.user.id);
+    if (!user) return res.status(404).json({ msg: 'User not found' });
+    const isMatch = await bcrypt.compare(currentPassword, user.password);
+    if (!isMatch) return res.status(400).json({ msg: 'Password is incorrect' });
+    await Promise.all([
+      WatchProgress.deleteMany({ userId: req.user.id }),
+      AudioProgress.deleteMany({ userId: req.user.id }),
+      Comment.deleteMany({ userId: req.user.id }),
+      User.findByIdAndDelete(req.user.id),
+    ]);
+    res.json({ msg: 'Account deleted' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
