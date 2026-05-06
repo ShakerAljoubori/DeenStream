@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { allAudioBooks } from "./data";
 import { useAudioProgress } from "./AudioProgressContext";
 import { useAudioPlayer } from "./AudioPlayerContext";
+import { formatTime } from "./utils";
 
 interface ContinueListeningProps {
   onSelectBook: (bookId: string, episodeId: number, timestamp: number) => void;
@@ -32,14 +33,6 @@ function ContinueListening({ onSelectBook }: ContinueListeningProps) {
 
   if (stableKeys.length === 0) return null;
 
-  const formatTime = (secs: number) => {
-    if (!secs || isNaN(secs) || secs <= 0) return "0:00";
-    const h = Math.floor(secs / 3600);
-    const m = Math.floor((secs % 3600) / 60);
-    const s = Math.floor(secs % 60);
-    if (h > 0) return `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
-    return `${m}:${String(s).padStart(2, "0")}`;
-  };
 
   return (
     <section className="px-8 mt-8 mb-4">

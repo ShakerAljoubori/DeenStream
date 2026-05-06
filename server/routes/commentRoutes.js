@@ -15,23 +15,30 @@ const auth = (req, res, next) => {
   }
 };
 
-// GET comments for an episode
+// GET comments for an episode — top-level only, with replies nested
 router.get('/:seriesId/:episodeId', async (req, res) => {
   try {
-    const comments = await Comment
-      .find({ seriesId: req.params.seriesId, episodeId: Number(req.params.episodeId) })
-      .sort({ createdAt: -1 })
-      .limit(100);
-    res.json(comments);
+    const filter = { seriesId: req.params.seriesId, episodeId: Number(req.params.episodeId) };
+    const [topLevel, allReplies] = await Promise.all([
+      Comment.find({ ...filter, parentId: null }).sort({ createdAt: -1 }).limit(100),
+      Comment.find({ ...filter, parentId: { $ne: null } }).sort({ createdAt: 1 }),
+    ]);
+    const withReplies = topLevel.map(c => ({
+      ...c.toObject(),
+      replies: allReplies
+        .filter(r => r.parentId?.toString() === c._id.toString())
+        .map(r => r.toObject()),
+    }));
+    res.json(withReplies);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// POST a comment
+// POST a comment or reply (parentId optional)
 router.post('/', auth, async (req, res) => {
   try {
-    const { seriesId, episodeId, text } = req.body;
+    const { seriesId, episodeId, text, parentId } = req.body;
     if (!text || !text.trim()) return res.status(400).json({ msg: 'Comment text required' });
 
     const user = await User.findById(req.user.id).select('name');
@@ -41,6 +48,7 @@ router.post('/', auth, async (req, res) => {
       userId: req.user.id,
       userName: user.name,
       text: text.trim().slice(0, 1000),
+      parentId: parentId || null,
     });
 
     await comment.save();
@@ -50,7 +58,7 @@ router.post('/', auth, async (req, res) => {
   }
 });
 
-// EDIT own comment
+// EDIT own comment or reply
 router.put('/:id', auth, async (req, res) => {
   try {
     const { text } = req.body;
@@ -67,7 +75,7 @@ router.put('/:id', auth, async (req, res) => {
   }
 });
 
-// TOGGLE like on a comment
+// TOGGLE like
 router.post('/:id/like', auth, async (req, res) => {
   try {
     const comment = await Comment.findById(req.params.id);
@@ -88,7 +96,7 @@ router.post('/:id/like', auth, async (req, res) => {
   }
 });
 
-// TOGGLE dislike on a comment
+// TOGGLE dislike
 router.post('/:id/dislike', auth, async (req, res) => {
   try {
     const comment = await Comment.findById(req.params.id);
@@ -109,13 +117,16 @@ router.post('/:id/dislike', auth, async (req, res) => {
   }
 });
 
-// DELETE own comment
+// DELETE own comment (cascades to replies if top-level)
 router.delete('/:id', auth, async (req, res) => {
   try {
     const comment = await Comment.findById(req.params.id);
     if (!comment) return res.status(404).json({ msg: 'Comment not found' });
     if (comment.userId.toString() !== req.user.id) return res.status(403).json({ msg: 'Not authorized' });
     await comment.deleteOne();
+    if (!comment.parentId) {
+      await Comment.deleteMany({ parentId: comment._id });
+    }
     res.json({ msg: 'Deleted' });
   } catch (err) {
     res.status(500).json({ error: err.message });

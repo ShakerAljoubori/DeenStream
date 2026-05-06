@@ -2,6 +2,7 @@ import { IoPlay, IoPause, IoVolumeHighOutline, IoClose } from "react-icons/io5";
 import { MdReplay5, MdForward5 } from "react-icons/md";
 import { useState, useEffect } from "react";
 import { useAudioPlayer } from "./AudioPlayerContext";
+import { formatTime } from "./utils";
 
 const AudioStickyPlayer = () => {
   const {
@@ -26,12 +27,6 @@ const AudioStickyPlayer = () => {
 
   if (!currentEpisode || !currentBook || dismissed) return null;
 
-  const formatTime = (time: number) => {
-    if (isNaN(time)) return "0:00";
-    const mins = Math.floor(time / 60);
-    const secs = Math.floor(time % 60);
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
 
   const handleTogglePlay = () => {
     if (!isPlaying) {

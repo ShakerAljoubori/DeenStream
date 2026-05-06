@@ -92,12 +92,12 @@ function Navbar({ onSelectSeries, onSelectBook }: NavbarProps) {
             onChange={handleChange}
             onKeyDown={handleKeyDown}
             placeholder="Search lectures..."
-            className="bg-white/5 border border-white/10 rounded-full py-1.5 pl-10 pr-4 text-sm text-text-main placeholder:text-text-muted/40 focus:outline-none focus:ring-1 focus:ring-brand-primary/30 focus:bg-white/10 transition-all duration-300 ease-in-out w-40 focus:w-80"
+            className="bg-white/5 border border-white/10 rounded-full py-1.5 pl-10 pr-4 text-sm text-text-main placeholder:text-text-muted/40 focus:outline-none focus:ring-1 focus:ring-brand-primary/30 focus:bg-white/10 transition-all duration-300 ease-in-out w-40 focus:w-[min(320px,calc(100vw-2rem))]"
           />
 
           {/* Dropdown */}
           {isOpen && (
-            <div className="absolute top-full mt-2 left-1/2 -translate-x-1/2 w-80 rounded-xl shadow-2xl overflow-hidden z-50" style={{ background: "linear-gradient(145deg, #1a2e22 0%, #111111 100%)", border: "1px solid rgba(22, 196, 127, 0.15)" }}>
+            <div className="absolute top-full mt-2 left-1/2 -translate-x-1/2 w-[min(320px,calc(100vw-2rem))] rounded-xl shadow-2xl overflow-hidden z-50" style={{ background: "linear-gradient(145deg, #1a2e22 0%, #111111 100%)", border: "1px solid rgba(22, 196, 127, 0.15)" }}>
               {hasResults ? (
                 <>
                   {results.series.length > 0 && (

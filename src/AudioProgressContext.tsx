@@ -16,7 +16,9 @@ interface AudioProgressContextType {
   allAudioProgress: Record<string, AudioProgressEntry>;
 }
 
+const API = "http://localhost:5000/api/audio-progress";
 const makeKey = (bookId: string, episodeId: number) => `${bookId}:${episodeId}`;
+const getToken = () => localStorage.getItem("token");
 
 const loadFromStorage = (key: string): Record<string, AudioProgressEntry> => {
   try {
@@ -27,17 +29,56 @@ const loadFromStorage = (key: string): Record<string, AudioProgressEntry> => {
   }
 };
 
+const saveToStorage = (key: string, data: Record<string, AudioProgressEntry>) => {
+  try { localStorage.setItem(key, JSON.stringify(data)); } catch {}
+};
+
 const AudioProgressContext = createContext<AudioProgressContextType | undefined>(undefined);
 
 export const AudioProgressProvider = ({ children }: { children: React.ReactNode }) => {
   const { userId } = useAuth();
   const lsKey = userId ? `ds_audio_progress_${userId}` : "ds_audio_progress_guest";
 
-  const [allAudioProgress, setAllAudioProgress] = useState<Record<string, AudioProgressEntry>>(() => loadFromStorage(lsKey));
+  const [allAudioProgress, setAllAudioProgress] = useState<Record<string, AudioProgressEntry>>(() =>
+    loadFromStorage(lsKey)
+  );
 
+  // When userId changes (login/logout/switch), load the right data source
   useEffect(() => {
-    setAllAudioProgress(loadFromStorage(lsKey));
-  }, [lsKey]);
+    if (!userId) {
+      setAllAudioProgress(loadFromStorage("ds_audio_progress_guest"));
+      return;
+    }
+
+    const token = getToken();
+    if (!token) {
+      setAllAudioProgress(loadFromStorage(lsKey));
+      return;
+    }
+
+    // Logged in — fetch all entries from server
+    fetch(API, { headers: { "x-auth-token": token } })
+      .then((r) => r.json())
+      .then((entries: Array<{ bookId: string; episodeId: number; timestamp: number; duration: number; updatedAt: string }>) => {
+        const map: Record<string, AudioProgressEntry> = {};
+        for (const e of entries) {
+          map[makeKey(e.bookId, e.episodeId)] = {
+            bookId: e.bookId,
+            episodeId: e.episodeId,
+            timestamp: e.timestamp,
+            duration: e.duration,
+            updatedAt: e.updatedAt,
+          };
+        }
+        setAllAudioProgress(map);
+        // Mirror to localStorage as offline cache
+        saveToStorage(lsKey, map);
+      })
+      .catch(() => {
+        // Server unreachable — fall back to cached localStorage
+        setAllAudioProgress(loadFromStorage(lsKey));
+      });
+  }, [userId, lsKey]);
 
   const saveAudioProgress = useCallback((
     bookId: string,
@@ -49,15 +90,25 @@ export const AudioProgressProvider = ({ children }: { children: React.ReactNode 
 
     const key = makeKey(bookId, episodeId);
 
-    // Episode finished — remove it from Continue Listening
+    // Episode finished — remove from Continue Listening
     if (duration > 0 && timestamp / duration > 0.95) {
       setAllAudioProgress((prev) => {
         if (!prev[key]) return prev;
         const next = { ...prev };
         delete next[key];
-        try { localStorage.setItem(lsKey, JSON.stringify(next)); } catch {}
+        saveToStorage(lsKey, next);
         return next;
       });
+
+      if (userId) {
+        const token = getToken();
+        if (token) {
+          fetch(`${API}/${bookId}/${episodeId}`, {
+            method: "DELETE",
+            headers: { "x-auth-token": token },
+          }).catch(() => {});
+        }
+      }
       return;
     }
 
@@ -71,10 +122,21 @@ export const AudioProgressProvider = ({ children }: { children: React.ReactNode 
 
     setAllAudioProgress((prev) => {
       const next = { ...prev, [key]: entry };
-      try { localStorage.setItem(lsKey, JSON.stringify(next)); } catch {}
+      saveToStorage(lsKey, next);
       return next;
     });
-  }, [lsKey]);
+
+    if (userId) {
+      const token = getToken();
+      if (token) {
+        fetch(API, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-auth-token": token },
+          body: JSON.stringify({ bookId, episodeId, timestamp, duration }),
+        }).catch(() => {});
+      }
+    }
+  }, [lsKey, userId]);
 
   const removeAudioProgress = useCallback((bookId: string, episodeId: number) => {
     const key = makeKey(bookId, episodeId);
@@ -82,10 +144,20 @@ export const AudioProgressProvider = ({ children }: { children: React.ReactNode 
       if (!prev[key]) return prev;
       const next = { ...prev };
       delete next[key];
-      try { localStorage.setItem(lsKey, JSON.stringify(next)); } catch {}
+      saveToStorage(lsKey, next);
       return next;
     });
-  }, [lsKey]);
+
+    if (userId) {
+      const token = getToken();
+      if (token) {
+        fetch(`${API}/${bookId}/${episodeId}`, {
+          method: "DELETE",
+          headers: { "x-auth-token": token },
+        }).catch(() => {});
+      }
+    }
+  }, [lsKey, userId]);
 
   const getAudioProgress = useCallback(
     (bookId: string, episodeId: number): AudioProgressEntry | null =>

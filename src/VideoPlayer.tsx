@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useAudioPlayer } from "./AudioPlayerContext";
+import { formatTime } from "./utils";
 
 interface VideoPlayerProps {
   url: string;
@@ -51,14 +52,6 @@ const VideoPlayer = ({ url, title, onClose, initialTimestamp, onProgress, poster
   const [isBuffering, setIsBuffering] = useState(false);
   const lastProgressSaveRef = useRef(0);
 
-  const formatTime = (secs: number) => {
-    if (isNaN(secs) || secs === 0) return "0:00";
-    const h = Math.floor(secs / 3600);
-    const m = Math.floor((secs % 3600) / 60);
-    const s = Math.floor(secs % 60);
-    if (h > 0) return `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
-    return `${m}:${String(s).padStart(2, "0")}`;
-  };
   
   // FIX: Using ReturnType<typeof setTimeout> removes the NodeJS namespace error
   const controlsTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);

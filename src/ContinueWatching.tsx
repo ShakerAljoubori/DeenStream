@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { IoClose } from "react-icons/io5";
 import { allSeries } from "./data";
 import { useWatchProgress } from "./WatchProgressContext";
@@ -42,9 +42,11 @@ function EpisodeThumbnail({ url, fallback, alt }: { url: string; fallback?: stri
   );
 }
 
+type ModalTarget = { seriesId: string; episodeId: number } | null;
+
 function ContinueWatching({ onSelectVideo }: ContinueWatchingProps) {
   const { allProgress, removeProgress } = useWatchProgress();
-  const [confirmKey, setConfirmKey] = useState<string | null>(null);
+  const [modalTarget, setModalTarget] = useState<ModalTarget>(null);
 
   const entries = Object.values(allProgress)
     .filter((prog) => prog.seriesId && allSeries.some((s) => s.id === prog.seriesId))
@@ -52,76 +54,146 @@ function ContinueWatching({ onSelectVideo }: ContinueWatchingProps) {
 
   if (entries.length === 0) return null;
 
+  const modalSeries = modalTarget ? allSeries.find((s) => s.id === modalTarget.seriesId) : null;
+  const modalEpisode = modalTarget && modalSeries ? modalSeries.episodes.find((e) => e.id === modalTarget.episodeId) : null;
+
+  function handleConfirmRemove() {
+    if (!modalTarget) return;
+    removeProgress(modalTarget.seriesId, modalTarget.episodeId);
+    setModalTarget(null);
+  }
+
   return (
-    <section className="px-8 mt-12 mb-4">
-      <h3 className="text-lg font-bold mb-4 text-text-main">Continue <span style={{ background: "linear-gradient(135deg, #f5c451 0%, #e8a820 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>Watching</span></h3>
+    <>
+      <section className="px-8 mt-12 mb-4">
+        <h3 className="text-lg font-bold mb-4 text-text-main">Continue <span style={{ background: "linear-gradient(135deg, #f5c451 0%, #e8a820 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>Watching</span></h3>
 
-      <div className="flex flex-wrap gap-4">
-        {entries.map((prog) => {
-          const series = allSeries.find((s) => s.id === prog.seriesId);
-          if (!series) return null;
-          const episode = series.episodes.find((e) => e.id === prog.episodeId);
-          const pct = prog.duration > 0 ? Math.min((prog.timestamp / prog.duration) * 100, 100) : 0;
+        <div className="flex flex-wrap gap-4">
+          {entries.map((prog) => {
+            const series = allSeries.find((s) => s.id === prog.seriesId);
+            if (!series) return null;
+            const episode = series.episodes.find((e) => e.id === prog.episodeId);
+            const pct = prog.duration > 0 ? Math.min((prog.timestamp / prog.duration) * 100, 100) : 0;
 
-          return (
-            <div
-              key={`${prog.seriesId}:${prog.episodeId}`}
-              onClick={() => onSelectVideo(prog.seriesId, prog.episodeId, prog.timestamp)}
-              onMouseLeave={() => { if (confirmKey === `${prog.seriesId}:${prog.episodeId}`) setConfirmKey(null); }}
-              className="group cursor-pointer w-[220px]"
-            >
-              <motion.div
-                layoutId={`thumb-cw-${series.id}`}
-                className="relative aspect-video rounded-xl overflow-hidden bg-app-card transition-all duration-300"
-                style={{ borderRadius: 12, border: "1px solid rgba(255,255,255,0.06)" }}
-                whileHover={{ boxShadow: "0 0 0 1px rgba(22,196,127,0.5), 0 8px 32px rgba(22,196,127,0.18)" }}
+            return (
+              <div
+                key={`${prog.seriesId}:${prog.episodeId}`}
+                onClick={() => onSelectVideo(prog.seriesId, prog.episodeId, prog.timestamp)}
+                className="group cursor-pointer w-[220px]"
               >
-                <EpisodeThumbnail
-                  url={episode?.url ?? ""}
-                  fallback={series.thumbnail}
-                  alt={series.title}
-                />
+                <motion.div
+                  layoutId={`thumb-cw-${series.id}`}
+                  className="relative aspect-video rounded-xl overflow-hidden bg-app-card transition-all duration-300"
+                  style={{ borderRadius: 12, border: "1px solid rgba(255,255,255,0.06)" }}
+                  whileHover={{ boxShadow: "0 0 0 1px rgba(22,196,127,0.5), 0 8px 32px rgba(22,196,127,0.18)" }}
+                  whileTap={{ scale: 0.97 }}
+                  whileTap={{ scale: 0.97 }}
+                >
+                  <EpisodeThumbnail
+                    url={episode?.url ?? ""}
+                    fallback={series.thumbnail}
+                    alt={series.title}
+                  />
 
-                {/* Remove button — visible on hover, with inline confirm */}
-                {confirmKey === `${prog.seriesId}:${prog.episodeId}` ? (
+                  {/* Remove button */}
                   <button
-                    onClick={(e) => { e.stopPropagation(); removeProgress(prog.seriesId, prog.episodeId); setConfirmKey(null); }}
-                    className="absolute top-2 right-2 z-10 px-2 h-6 rounded-full bg-red-500/80 backdrop-blur-sm flex items-center justify-center text-white text-[10px] font-bold transition-all duration-200"
-                  >
-                    Sure?
-                  </button>
-                ) : (
-                  <button
-                    onClick={(e) => { e.stopPropagation(); setConfirmKey(`${prog.seriesId}:${prog.episodeId}`); }}
+                    onClick={(e) => { e.stopPropagation(); setModalTarget({ seriesId: prog.seriesId, episodeId: prog.episodeId }); }}
                     className="absolute top-2 right-2 z-10 w-6 h-6 rounded-full bg-black/60 backdrop-blur-sm flex items-center justify-center text-white/70 hover:text-white hover:bg-black/80 opacity-0 group-hover:opacity-100 transition-all duration-200 active:scale-95"
                     title="Remove from Continue Watching"
                   >
                     <IoClose className="text-sm" />
                   </button>
-                )}
 
-                {/* Progress bar */}
-                <div className="absolute bottom-0 left-0 right-0 h-1 bg-white/20 z-10">
-                  <div
-                    className="h-full transition-all duration-300"
-                    style={{ width: `${pct}%`, background: "linear-gradient(90deg, #16c47f 0%, #f5c451 100%)" }}
-                  />
+                  {/* Progress bar */}
+                  <div className="absolute bottom-0 left-0 right-0 h-1 bg-white/20 z-10">
+                    <div
+                      className="h-full transition-all duration-300"
+                      style={{ width: `${pct}%`, background: "linear-gradient(90deg, #16c47f 0%, #f5c451 100%)" }}
+                    />
+                  </div>
+                </motion.div>
+
+                <div className="mt-2">
+                  <h4 className="text-sm font-semibold text-text-main group-hover:text-brand-primary transition-colors truncate">
+                    {series.title}
+                  </h4>
+                  <p className="text-xs text-text-muted truncate">
+                    {episode?.title ?? "Episode"} · {Math.round(pct)}% watched
+                  </p>
                 </div>
-              </motion.div>
-
-              <div className="mt-2">
-                <h4 className="text-sm font-semibold text-text-main group-hover:text-brand-primary transition-colors truncate">
-                  {series.title}
-                </h4>
-                <p className="text-xs text-text-muted truncate">
-                  {episode?.title ?? "Episode"} · {Math.round(pct)}% watched
-                </p>
               </div>
-            </div>
-          );
-        })}
-      </div>
-    </section>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* Removal confirmation modal */}
+      <AnimatePresence>
+        {modalTarget && modalSeries && (
+          <motion.div
+            className="fixed inset-0 z-[200] flex items-center justify-center"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.18 }}
+            onClick={() => setModalTarget(null)}
+          >
+            {/* Blurred backdrop */}
+            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+
+            <motion.div
+              className="relative z-10 rounded-2xl overflow-hidden flex flex-col"
+              style={{
+                background: "linear-gradient(160deg, rgba(18,32,24,0.98) 0%, rgba(10,18,14,0.99) 100%)",
+                border: "1px solid rgba(255,255,255,0.09)",
+                boxShadow: "0 24px 64px rgba(0,0,0,0.6)",
+                width: 300,
+              }}
+              initial={{ scale: 0.92, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.92, opacity: 0 }}
+              transition={{ type: "spring", stiffness: 300, damping: 30 }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Thumbnail */}
+              <div className="relative w-full aspect-video">
+                <EpisodeThumbnail
+                  url={modalEpisode?.url ?? ""}
+                  fallback={modalSeries.thumbnail}
+                  alt={modalSeries.title}
+                />
+                <div className="absolute inset-0" style={{ background: "linear-gradient(to top, rgba(10,18,14,0.9) 0%, transparent 60%)" }} />
+              </div>
+
+              {/* Content */}
+              <div className="px-5 pt-3 pb-5 flex flex-col gap-4">
+                <div>
+                  <p className="text-xs text-text-muted mb-0.5">Remove from Continue Watching?</p>
+                  <p className="text-sm font-semibold text-text-main leading-snug">{modalSeries.title}</p>
+                </div>
+
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setModalTarget(null)}
+                    className="flex-1 py-2 rounded-lg text-sm font-medium text-text-muted transition-colors"
+                    style={{ background: "rgba(255,255,255,0.06)" }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleConfirmRemove}
+                    className="flex-1 py-2 rounded-lg text-sm font-semibold text-white transition-opacity hover:opacity-90 active:scale-95"
+                    style={{ background: "linear-gradient(135deg, #e53e3e 0%, #c53030 100%)" }}
+                  >
+                    Remove
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </>
   );
 }
 

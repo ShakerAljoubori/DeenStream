@@ -5,12 +5,14 @@ import {
   IoHeart, IoHeartOutline, IoBookmark, IoBookmarkOutline, IoClose,
   IoThumbsUp, IoThumbsUpOutline, IoThumbsDown, IoThumbsDownOutline,
   IoFlag, IoFlagOutline, IoPaperPlane, IoTrash, IoPencil, IoCheckmark,
+  IoReturnDownForward,
 } from "react-icons/io5";
 import VideoPlayer from "./VideoPlayer";
 import { useFavorites } from "./FavoritesContext";
 import { useWatchProgress } from "./WatchProgressContext";
 import { allSeries } from "./data";
 import type { Series, Episode } from "./data";
+import { formatTime } from "./utils";
 
 interface CommentType {
   _id: string;
@@ -21,6 +23,8 @@ interface CommentType {
   editedAt?: string;
   likes: string[];
   dislikes: string[];
+  parentId?: string | null;
+  replies?: CommentType[];
 }
 
 interface VideoDetailsProps {
@@ -109,10 +113,17 @@ function VideoDetailsPage({ series, user, onBack, initialEpisodeId, initialTimes
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editText, setEditText] = useState("");
   const [savingEdit, setSavingEdit] = useState(false);
+  const [replyingToId, setReplyingToId] = useState<string | null>(null);
+  const [replyText, setReplyText] = useState("");
+  const [postingReply, setPostingReply] = useState(false);
+  const [expandedReplies, setExpandedReplies] = useState<string[]>([]);
 
   const commentListRef = useRef<HTMLDivElement>(null);
   const newCommentFlag = useRef(false);
   const editedCommentIdRef = useRef<string | null>(null);
+  const newReplyParentIdRef = useRef<string | null>(null);
+  const replyListRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+  const replyInputRef = useRef<HTMLInputElement>(null);
 
   const [localReaction, setLocalReaction] = useState<"like" | "dislike" | null>(null);
   const [reported, setReported] = useState(false);
@@ -127,14 +138,6 @@ function VideoDetailsPage({ series, user, onBack, initialEpisodeId, initialTimes
   const { saveProgress } = useWatchProgress();
   const seriesSaved = isSeriesFavorite(series.id);
   const episodeBookmarked = isVideoEpisodeSaved(series.id, currentEpisode.id);
-
-  const formatTime = (seconds: number) => {
-    const hrs = Math.floor(seconds / 3600);
-    const mins = Math.floor((seconds % 3600) / 60);
-    const secs = Math.floor(seconds % 60);
-    const mmss = `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
-    return hrs > 0 ? `${hrs}:${mmss}` : mmss;
-  };
 
   useEffect(() => {
     series.episodes.forEach((ep) => {
@@ -164,14 +167,27 @@ function VideoDetailsPage({ series, user, onBack, initialEpisodeId, initialTimes
     fetchComments();
     setLocalReaction(null);
     setReported(false);
+    setReplyingToId(null);
+    setExpandedReplies([]);
   }, [series.id, currentEpisode.id]);
 
-  // GSAP comment animations — runs after every comments state change
+  // Updates a comment (or reply nested inside one) by id
+  const updateCommentInState = (id: string, updater: (c: CommentType) => CommentType) => {
+    setComments(prev => prev.map(c => {
+      if (c._id === id) return updater(c);
+      if (c.replies?.some(r => r._id === id)) {
+        return { ...c, replies: c.replies!.map(r => r._id === id ? updater(r) : r) };
+      }
+      return c;
+    }));
+  };
+
+  // GSAP comment animations
   useLayoutEffect(() => {
-    // ── New comment entrance ──
+    // ── New top-level comment entrance ──
     if (newCommentFlag.current && commentListRef.current) {
       newCommentFlag.current = false;
-      const card    = commentListRef.current.firstElementChild as HTMLElement | null;
+      const card = commentListRef.current.firstElementChild as HTMLElement | null;
       if (card) {
         const avatar  = card.querySelector<HTMLElement>(".ca");
         const body    = card.querySelector<HTMLElement>(".cb");
@@ -187,6 +203,30 @@ function VideoDetailsPage({ series, user, onBack, initialEpisodeId, initialTimes
           .to(avatar,  { scale: 1, rotate: 0, duration: 0.42, ease: "back.out(2.5)" }, "-=0.28")
           .to(body,    { opacity: 1, x: 0, duration: 0.3 }, "-=0.22")
           .to(actions, { opacity: 1, duration: 0.2 }, "-=0.1");
+      }
+    }
+
+    // ── New reply entrance ──
+    if (newReplyParentIdRef.current) {
+      const parentId = newReplyParentIdRef.current;
+      newReplyParentIdRef.current = null;
+      const container = replyListRefs.current.get(parentId);
+      const lastReply = container?.lastElementChild as HTMLElement | null;
+      if (lastReply) {
+        const avatar = lastReply.querySelector<HTMLElement>(".ca");
+        const body   = lastReply.querySelector<HTMLElement>(".cb");
+        gsap.set(lastReply, { opacity: 0, x: -16, scale: 0.96, transformOrigin: "top left" });
+        if (avatar) gsap.set(avatar, { scale: 0, rotate: -15, transformOrigin: "center" });
+        if (body)   gsap.set(body,   { opacity: 0, x: -10 });
+        gsap.timeline({ defaults: { ease: "power3.out" } })
+          .to(lastReply, { opacity: 1, x: 0, scale: 1, duration: 0.4, ease: "back.out(1.5)" })
+          .to(avatar,    { scale: 1, rotate: 0, duration: 0.35, ease: "back.out(2.5)" }, "-=0.22")
+          .to(body,      { opacity: 1, x: 0, duration: 0.25 }, "-=0.18");
+
+        // Wait for the height animation to finish opening, then scroll the reply into view
+        setTimeout(() => {
+          lastReply.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        }, 320);
       }
     }
 
@@ -218,7 +258,7 @@ function VideoDetailsPage({ series, user, onBack, initialEpisodeId, initialTimes
       if (res.ok) {
         const newComment = await res.json();
         newCommentFlag.current = true;
-        setComments((prev) => [newComment, ...prev]);
+        setComments((prev) => [{ ...newComment, replies: [] }, ...prev]);
         setCommentText("");
       }
     } finally {
@@ -226,7 +266,32 @@ function VideoDetailsPage({ series, user, onBack, initialEpisodeId, initialTimes
     }
   };
 
-  const deleteComment = (commentId: string) => {
+  const postReply = async (parentId: string) => {
+    if (!replyText.trim() || !user || postingReply) return;
+    setPostingReply(true);
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch("http://localhost:5000/api/comments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-auth-token": token! },
+        body: JSON.stringify({ seriesId: series.id, episodeId: currentEpisode.id, text: replyText.trim(), parentId }),
+      });
+      if (res.ok) {
+        const newReply = await res.json();
+        newReplyParentIdRef.current = parentId;
+        setComments(prev => prev.map(c =>
+          c._id === parentId ? { ...c, replies: [...(c.replies ?? []), newReply] } : c
+        ));
+        setExpandedReplies(prev => prev.includes(parentId) ? prev : [...prev, parentId]);
+        setReplyingToId(null);
+        setReplyText("");
+      }
+    } finally {
+      setPostingReply(false);
+    }
+  };
+
+  const deleteComment = (commentId: string, parentId?: string | null) => {
     const card = commentListRef.current?.querySelector<HTMLElement>(`[data-comment-id="${commentId}"]`);
 
     const performDelete = async () => {
@@ -235,7 +300,15 @@ function VideoDetailsPage({ series, user, onBack, initialEpisodeId, initialTimes
         method: "DELETE",
         headers: { "x-auth-token": token! },
       });
-      if (res.ok) setComments((prev) => prev.filter((c) => c._id !== commentId));
+      if (res.ok) {
+        if (parentId) {
+          setComments(prev => prev.map(c =>
+            c._id === parentId ? { ...c, replies: (c.replies ?? []).filter(r => r._id !== commentId) } : c
+          ));
+        } else {
+          setComments(prev => prev.filter(c => c._id !== commentId));
+        }
+      }
     };
 
     if (card) {
@@ -261,7 +334,7 @@ function VideoDetailsPage({ series, user, onBack, initialEpisodeId, initialTimes
       if (res.ok) {
         const updated = await res.json();
         editedCommentIdRef.current = commentId;
-        setComments((prev) => prev.map((c) => (c._id === commentId ? updated : c)));
+        updateCommentInState(commentId, () => updated);
         setEditingId(null);
       }
     } finally {
@@ -278,11 +351,140 @@ function VideoDetailsPage({ series, user, onBack, initialEpisodeId, initialTimes
     });
     if (res.ok) {
       const { likes, dislikes } = await res.json();
-      setComments((prev) => prev.map((c) => (c._id === commentId ? { ...c, likes, dislikes } : c)));
+      updateCommentInState(commentId, c => ({ ...c, likes, dislikes }));
     }
   };
 
+  function toggleReplies(id: string) {
+    setExpandedReplies(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  }
+
   const suggestedSeries = allSeries.filter((s) => s.id !== series.id);
+
+  // Shared comment card renderer (used for both top-level and replies)
+  function renderCommentCard(c: CommentType, parentId?: string) {
+    const isOwn       = user?.id === c.userId;
+    const isEditing   = editingId === c._id;
+    const userLiked   = user ? c.likes.map(String).includes(user.id) : false;
+    const userDisliked= user ? c.dislikes.map(String).includes(user.id) : false;
+    const isReply     = !!parentId;
+
+    return (
+      <div key={c._id} data-comment-id={c._id} className={`flex gap-3 group${isReply ? " relative pl-4 border-l-2 border-[#16C47F]/15" : ""}`}>
+        {/* Avatar */}
+        <div
+          className="ca w-8 h-8 rounded-full shrink-0 flex items-center justify-center text-xs font-bold text-black"
+          style={{ background: "linear-gradient(135deg, #22e696, #16c47f)", minWidth: isReply ? 32 : 36, minHeight: isReply ? 32 : 36, width: isReply ? 32 : 36, height: isReply ? 32 : 36 }}
+        >
+          {c.userName[0].toUpperCase()}
+        </div>
+
+        {/* Body */}
+        <div className="cb flex-1 min-w-0">
+          <div className="flex items-baseline gap-2 flex-wrap">
+            <span className="text-sm font-semibold text-white/90">{c.userName}</span>
+            <span className="text-xs text-white/30">{formatRelativeTime(c.createdAt)}</span>
+            {c.editedAt && <span className="text-[10px] text-white/20 italic">edited</span>}
+          </div>
+
+          {isEditing ? (
+            <div className="mt-1.5 flex gap-2 items-start">
+              <input
+                type="text"
+                value={editText}
+                onChange={(e) => setEditText(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") editComment(c._id); if (e.key === "Escape") setEditingId(null); }}
+                maxLength={1000}
+                autoFocus
+                className="flex-1 bg-white/5 border border-brand-primary/40 rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none"
+              />
+              <button onClick={() => editComment(c._id)} disabled={savingEdit} className="p-1.5 text-brand-primary hover:bg-brand-primary/10 rounded-lg transition-all disabled:opacity-40">
+                <IoCheckmark className="text-base" />
+              </button>
+              <button onClick={() => setEditingId(null)} className="p-1.5 text-white/30 hover:text-white rounded-lg transition-all">
+                <IoClose className="text-base" />
+              </button>
+            </div>
+          ) : (
+            <p className="text-sm text-white/65 mt-1 leading-relaxed break-words">
+              {(() => {
+                const match = c.text.match(/^(@\S+)([\s\S]*)$/);
+                if (match) return <><span className="text-brand-primary font-medium">{match[1]}</span>{match[2]}</>;
+                return c.text;
+              })()}
+            </p>
+          )}
+
+          {/* Actions row */}
+          {!isEditing && (
+            <div className="cc flex items-center gap-3 mt-2">
+              <button
+                onClick={() => toggleCommentReaction(c._id, "like")}
+                className={`flex items-center gap-1 text-xs transition-all hover:scale-110 active:scale-95 ${userLiked ? "text-brand-primary" : "text-white/30 hover:text-white/60"}`}
+              >
+                {userLiked ? <IoThumbsUp className="text-sm" /> : <IoThumbsUpOutline className="text-sm" />}
+                {c.likes.length > 0 && <span>{c.likes.length}</span>}
+              </button>
+              <button
+                onClick={() => toggleCommentReaction(c._id, "dislike")}
+                className={`flex items-center gap-1 text-xs transition-all hover:scale-110 active:scale-95 ${userDisliked ? "text-red-400" : "text-white/30 hover:text-white/60"}`}
+              >
+                {userDisliked ? <IoThumbsDown className="text-sm" /> : <IoThumbsDownOutline className="text-sm" />}
+                {c.dislikes.length > 0 && <span>{c.dislikes.length}</span>}
+              </button>
+              {/* Reply button */}
+              {user && (
+                <button
+                  onClick={() => {
+                    if (!isReply) {
+                      // Top-level: toggle open/close
+                      const toggling = replyingToId === c._id;
+                      setReplyingToId(toggling ? null : c._id);
+                      setReplyText("");
+                    } else {
+                      // Reply: open parent thread and pre-fill @mention
+                      const mention = `@${c.userName} `;
+                      const alreadyOpen = replyingToId === parentId;
+                      setReplyingToId(parentId!);
+                      setReplyText(mention);
+                      setTimeout(() => {
+                        const input = replyInputRef.current;
+                        if (!input) return;
+                        input.focus();
+                        input.setSelectionRange(mention.length, mention.length);
+                      }, alreadyOpen ? 0 : 60);
+                    }
+                  }}
+                  className="flex items-center gap-1 text-xs text-white/30 hover:text-brand-primary transition-all"
+                >
+                  <IoReturnDownForward className="text-sm" />
+                  <span>Reply</span>
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Own-comment actions */}
+        {isOwn && !isEditing && (
+          <div className="opacity-0 group-hover:opacity-100 flex gap-0.5 shrink-0 self-start mt-1 transition-all">
+            <button
+              onClick={() => { setEditingId(c._id); setEditText(c.text); }}
+              className="p-1.5 text-white/25 hover:text-brand-primary rounded-lg transition-all"
+            >
+              <IoPencil className="text-sm" />
+            </button>
+            <button
+              onClick={() => deleteComment(c._id, parentId)}
+              className="p-1.5 text-white/25 hover:text-red-400 rounded-lg transition-all"
+            >
+              <IoTrash className="text-sm" />
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <>
@@ -437,7 +639,7 @@ function VideoDetailsPage({ series, user, onBack, initialEpisodeId, initialTimes
                     <span className="text-white/30 font-normal text-sm">({comments.length})</span>
                   </h3>
 
-                  {/* Input */}
+                  {/* Top-level input */}
                   {user ? (
                     <div className="flex gap-3 mb-7">
                       <div
@@ -496,93 +698,102 @@ function VideoDetailsPage({ series, user, onBack, initialEpisodeId, initialTimes
                     <p className="text-white/20 text-sm italic">No comments yet. Be the first!</p>
                   ) : (
                     <div className="space-y-6" ref={commentListRef}>
-                      {comments.map((c) => {
-                        const isOwn    = user?.id === c.userId;
-                        const isEditing = editingId === c._id;
-                        const userLiked    = user ? c.likes.map(String).includes(user.id) : false;
-                        const userDisliked = user ? c.dislikes.map(String).includes(user.id) : false;
+                      {comments.map((c) => (
+                        <div key={c._id} className="space-y-2">
+                          {/* Top-level comment card */}
+                          {renderCommentCard(c)}
 
-                        return (
-                          <div key={c._id} data-comment-id={c._id} className="flex gap-3 group">
-                            {/* Avatar */}
-                            <div
-                              className="ca w-9 h-9 rounded-full shrink-0 flex items-center justify-center text-xs font-bold text-black"
-                              style={{ background: "linear-gradient(135deg, #22e696, #16c47f)" }}
-                            >
-                              {c.userName[0].toUpperCase()}
-                            </div>
-
-                            {/* Body */}
-                            <div className="cb flex-1 min-w-0">
-                              <div className="flex items-baseline gap-2">
-                                <span className="text-sm font-semibold text-white/90">{c.userName}</span>
-                                <span className="text-xs text-white/30">{formatRelativeTime(c.createdAt)}</span>
-                                {c.editedAt && <span className="text-[10px] text-white/20 italic">edited</span>}
-                              </div>
-
-                              {isEditing ? (
-                                <div className="mt-1.5 flex gap-2 items-start">
-                                  <input
-                                    type="text"
-                                    value={editText}
-                                    onChange={(e) => setEditText(e.target.value)}
-                                    onKeyDown={(e) => { if (e.key === "Enter") editComment(c._id); if (e.key === "Escape") setEditingId(null); }}
-                                    maxLength={1000}
-                                    autoFocus
-                                    className="flex-1 bg-white/5 border border-brand-primary/40 rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none"
-                                  />
-                                  <button onClick={() => editComment(c._id)} disabled={savingEdit} className="p-1.5 text-brand-primary hover:bg-brand-primary/10 rounded-lg transition-all disabled:opacity-40">
-                                    <IoCheckmark className="text-base" />
-                                  </button>
-                                  <button onClick={() => setEditingId(null)} className="p-1.5 text-white/30 hover:text-white rounded-lg transition-all">
-                                    <IoClose className="text-base" />
+                          {/* Inline reply input */}
+                          <AnimatePresence>
+                            {replyingToId === c._id && user && (
+                              <motion.div
+                                className="overflow-hidden"
+                                initial={{ height: 0, opacity: 0 }}
+                                animate={{ height: "auto", opacity: 1 }}
+                                exit={{ height: 0, opacity: 0 }}
+                                transition={SPRING}
+                              >
+                              <div className="flex gap-2.5 ml-11 pt-1">
+                                <div
+                                  className="w-7 h-7 rounded-full shrink-0 flex items-center justify-center text-xs font-bold text-black mt-1"
+                                  style={{ background: "linear-gradient(135deg, #22e696, #16c47f)" }}
+                                >
+                                  {user.name[0].toUpperCase()}
+                                </div>
+                                <div className="flex-1 flex gap-2 items-center">
+                                  <div className="relative flex-1">
+                                    <input
+                                      ref={replyInputRef}
+                                      type="text"
+                                      value={replyText}
+                                      onChange={(e) => setReplyText(e.target.value)}
+                                      onKeyDown={(e) => {
+                                        if (e.key === "Enter") postReply(c._id);
+                                        if (e.key === "Escape") { setReplyingToId(null); setReplyText(""); }
+                                      }}
+                                      placeholder={`Reply to ${c.userName}…`}
+                                      maxLength={1000}
+                                      autoFocus
+                                      className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 pr-10 text-sm text-white placeholder-white/30 focus:outline-none focus:border-brand-primary/40 transition-colors"
+                                    />
+                                    <button
+                                      onClick={() => postReply(c._id)}
+                                      disabled={!replyText.trim() || postingReply}
+                                      className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 rounded-lg text-brand-primary disabled:opacity-30 hover:bg-brand-primary/10 transition-all"
+                                    >
+                                      <IoPaperPlane className="text-sm" />
+                                    </button>
+                                  </div>
+                                  <button
+                                    onClick={() => { setReplyingToId(null); setReplyText(""); }}
+                                    className="text-xs text-white/30 hover:text-white/60 transition-colors shrink-0"
+                                  >
+                                    Cancel
                                   </button>
                                 </div>
-                              ) : (
-                                <p className="text-sm text-white/65 mt-1 leading-relaxed break-words">{c.text}</p>
-                              )}
-
-                              {/* Like / dislike row */}
-                              {!isEditing && (
-                                <div className="cc flex items-center gap-3 mt-2">
-                                  <button
-                                    onClick={() => toggleCommentReaction(c._id, "like")}
-                                    className={`flex items-center gap-1 text-xs transition-all hover:scale-110 active:scale-95 ${userLiked ? "text-brand-primary" : "text-white/30 hover:text-white/60"}`}
-                                  >
-                                    {userLiked ? <IoThumbsUp className="text-sm" /> : <IoThumbsUpOutline className="text-sm" />}
-                                    {c.likes.length > 0 && <span>{c.likes.length}</span>}
-                                  </button>
-                                  <button
-                                    onClick={() => toggleCommentReaction(c._id, "dislike")}
-                                    className={`flex items-center gap-1 text-xs transition-all hover:scale-110 active:scale-95 ${userDisliked ? "text-red-400" : "text-white/30 hover:text-white/60"}`}
-                                  >
-                                    {userDisliked ? <IoThumbsDown className="text-sm" /> : <IoThumbsDownOutline className="text-sm" />}
-                                    {c.dislikes.length > 0 && <span>{c.dislikes.length}</span>}
-                                  </button>
-                                </div>
-                              )}
-                            </div>
-
-                            {/* Own-comment actions */}
-                            {isOwn && !isEditing && (
-                              <div className="opacity-0 group-hover:opacity-100 flex gap-0.5 shrink-0 self-start mt-1 transition-all">
-                                <button
-                                  onClick={() => { setEditingId(c._id); setEditText(c.text); }}
-                                  className="p-1.5 text-white/25 hover:text-brand-primary rounded-lg transition-all"
-                                >
-                                  <IoPencil className="text-sm" />
-                                </button>
-                                <button
-                                  onClick={() => deleteComment(c._id)}
-                                  className="p-1.5 text-white/25 hover:text-red-400 rounded-lg transition-all"
-                                >
-                                  <IoTrash className="text-sm" />
-                                </button>
                               </div>
+                              </motion.div>
                             )}
-                          </div>
-                        );
-                      })}
+                          </AnimatePresence>
+
+                          {/* Replies */}
+                          {(c.replies?.length ?? 0) > 0 && (
+                            <div className="ml-11">
+                              <button
+                                onClick={() => toggleReplies(c._id)}
+                                className="flex items-center gap-1.5 text-xs text-brand-primary/80 hover:text-brand-primary font-medium transition-colors mb-2"
+                              >
+                                <IoReturnDownForward className={`text-sm transition-transform duration-200 ${expandedReplies.includes(c._id) ? "rotate-180" : ""}`} />
+                                {expandedReplies.includes(c._id)
+                                  ? "Hide replies"
+                                  : `${c.replies!.length} ${c.replies!.length === 1 ? "reply" : "replies"}`}
+                              </button>
+
+                              <AnimatePresence>
+                                {expandedReplies.includes(c._id) && (
+                                  <motion.div
+                                    className="overflow-hidden"
+                                    initial={{ height: 0, opacity: 0 }}
+                                    animate={{ height: "auto", opacity: 1 }}
+                                    exit={{ height: 0, opacity: 0 }}
+                                    transition={SPRING}
+                                  >
+                                    <div
+                                      className="space-y-4 pt-1"
+                                      ref={(el) => {
+                                        if (el) replyListRefs.current.set(c._id, el);
+                                        else replyListRefs.current.delete(c._id);
+                                      }}
+                                    >
+                                      {c.replies!.map((r) => renderCommentCard(r, c._id))}
+                                    </div>
+                                  </motion.div>
+                                )}
+                              </AnimatePresence>
+                            </div>
+                          )}
+                        </div>
+                      ))}
                     </div>
                   )}
                 </motion.div>
