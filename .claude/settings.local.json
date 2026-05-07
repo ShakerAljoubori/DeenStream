@@ -20,7 +20,13 @@
       "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\Shaker\\\\Documents\" -Directory)",
       "Bash(grep -v \"^.*//.*onClick\")",
       "Bash(dir \"C:\\\\Users\\\\Shaker\\\\Documents\\\\DeenStream\\\\server\\\\models\")",
-      "Bash(dir \"C:\\\\Users\\\\Shaker\\\\Documents\\\\DeenStream\\\\server\\\\routes\")"
+      "Bash(dir \"C:\\\\Users\\\\Shaker\\\\Documents\\\\DeenStream\\\\server\\\\routes\")",
+      "PowerShell(Get-ChildItem \"C:\\\\Users\\\\Shaker\\\\Documents\" | Where-Object { $_.Name -match \"obsidian|vault\" -or $_.Name -match \"Deen\" } | Select-Object Name, FullName)",
+      "Bash(cmd.exe *)",
+      "PowerShell(Get-ChildItem -Path \"C:\\\\Users\\\\Shaker\\\\Documents\" -Force | ForEach-Object { Write-Host $_.Name })",
+      "PowerShell(Get-ChildItem -Path \"C:\\\\Users\\\\Shaker\\\\Documents\\\\Obsidian-Vault\" -Recurse | Where-Object { !$_.PSIsContainer } | Select-Object FullName)",
+      "PowerShell(Get-ChildItem -Path \"C:\\\\Users\\\\Shaker\\\\Documents\\\\Obsidian-Vault\" -Force | ForEach-Object { Write-Host $_.Name })",
+      "PowerShell(Get-ChildItem -Path \"C:\\\\Users\\\\Shaker\\\\Documents\\\\Obsidian-Vault\\\\DeenStream\" -Force | ForEach-Object { Write-Host $_.Name })"
     ]
   }
 }
