@@ -10,6 +10,7 @@ interface SidebarProps {
   currentPage: string;
   user: { name: string; email: string } | null;
   onLogout: () => void;
+  avatar?: string;
 }
 
 const NAV_ACTIVE_STYLE = {
@@ -120,7 +121,7 @@ function PopupContent({
   );
 }
 
-function Sidebar({ onNavigate, currentPage, user, onLogout }: SidebarProps) {
+function Sidebar({ onNavigate, currentPage, user, onLogout, avatar }: SidebarProps) {
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const mobileMenuRef = useRef<HTMLDivElement>(null);
@@ -228,10 +229,12 @@ function Sidebar({ onNavigate, currentPage, user, onLogout }: SidebarProps) {
 
           <motion.div
             onClick={() => setShowProfileMenu(!showProfileMenu)}
-            className={`${currentBook || currentEpisode ? "mb-24" : "mb-4"} w-10 h-10 rounded-full flex items-center justify-center cursor-pointer font-bold`}
+            className={`${currentBook || currentEpisode ? "mb-24" : "mb-4"} w-10 h-10 rounded-full flex items-center justify-center cursor-pointer font-bold overflow-hidden`}
             style={showProfileMenu
               ? { background: "rgba(22,196,127,0.2)", border: "1px solid #16c47f", color: "#16c47f" }
-              : { background: "rgba(245,196,81,0.15)", border: "1px solid rgba(245,196,81,0.35)", color: "#f5c451" }}
+              : avatar
+                ? { border: "1px solid rgba(245,196,81,0.35)" }
+                : { background: "rgba(245,196,81,0.15)", border: "1px solid rgba(245,196,81,0.35)", color: "#f5c451" }}
             whileHover={{ scale: 1.12 }}
             whileTap={{ scale: 0.82, rotate: 12 }}
             animate={showProfileMenu
@@ -239,7 +242,9 @@ function Sidebar({ onNavigate, currentPage, user, onLogout }: SidebarProps) {
               : { boxShadow: "0 0 0 0px rgba(22,196,127,0)" }}
             transition={{ type: "spring", stiffness: 420, damping: 22 }}
           >
-            {user ? user.name.charAt(0).toUpperCase() : <HiOutlineUserCircle className="text-2xl" />}
+            {avatar
+              ? <img src={avatar} alt="" className="w-full h-full object-cover" />
+              : user ? user.name.charAt(0).toUpperCase() : <HiOutlineUserCircle className="text-2xl" />}
           </motion.div>
         </div>
       </aside>

@@ -1,6 +1,6 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { IoHeartOutline, IoHeart, IoBookmark, IoBookmarkOutline } from "react-icons/io5";
+import { IoHeartOutline, IoHeart, IoBookmark, IoBookmarkOutline, IoThumbsUp } from "react-icons/io5";
 import { allSeries, allAudioBooks } from "./data";
 import type { AudioBook, Series, Episode, AudioEpisode } from "./data";
 import { useFavorites } from "./FavoritesContext";
@@ -383,7 +383,7 @@ function BookCard({
 }
 
 function EpisodeRow({
-  index, title, duration, onPlay, onRemove, isVideo,
+  index, title, duration, onPlay, onRemove, isVideo, hideRemove,
 }: {
   index: number;
   title: string;
@@ -391,6 +391,7 @@ function EpisodeRow({
   onPlay: () => void;
   onRemove: () => void;
   isVideo: boolean;
+  hideRemove?: boolean;
 }) {
   return (
     <motion.div
@@ -412,23 +413,112 @@ function EpisodeRow({
         >
           {isVideo ? "Watch" : "Listen"}
         </button>
-        <button onClick={onRemove} className="text-[#16C47F] hover:scale-110 transition-all active:scale-95">
-          <IoBookmark className="text-base" />
-        </button>
+        {!hideRemove && (
+          <button onClick={onRemove} className="text-[#16C47F] hover:scale-110 transition-all active:scale-95">
+            <IoBookmark className="text-base" />
+          </button>
+        )}
       </div>
     </motion.div>
   );
 }
 
+// ─── Liked Videos Tab ──────────────────────────────────────────────────────────
+function LikedVideosTab({ onSelectSeries }: { onSelectSeries: (id: string, episodeId?: number) => void }) {
+  const [liked, setLiked] = useState<{ seriesId: string; episodeId: number }[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (!token) { setLoading(false); return; }
+    fetch("http://localhost:5000/api/video-reactions/liked", { headers: { "x-auth-token": token } })
+      .then(r => r.ok ? r.json() : [])
+      .then(data => { setLiked(data); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="space-y-3">
+        {[1, 2, 3].map(i => (
+          <div key={i} className="flex items-center gap-3 animate-pulse px-4 py-3 bg-app-card rounded-xl">
+            <div className="w-5 h-5 rounded-full bg-white/10 shrink-0" />
+            <div className="flex-1 space-y-1.5">
+              <div className="h-2.5 bg-white/10 rounded w-1/2" />
+              <div className="h-2 bg-white/10 rounded w-24" />
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  if (liked.length === 0) {
+    return (
+      <EmptyState
+        icon={<IoThumbsUp className="text-4xl text-white/20" />}
+        text="No liked videos yet"
+        sub="Like any episode while watching to see it collected here."
+      />
+    );
+  }
+
+  type VideoGroup = { series: Series; episodes: Episode[] };
+  const groups = liked.reduce<Record<string, VideoGroup>>((acc, { seriesId, episodeId }) => {
+    const series = allSeries.find(s => s.id === seriesId);
+    if (!series) return acc;
+    const episode = series.episodes.find(e => e.id === episodeId);
+    if (!episode) return acc;
+    if (!acc[seriesId]) acc[seriesId] = { series, episodes: [] };
+    if (!acc[seriesId].episodes.some(e => e.id === episodeId)) acc[seriesId].episodes.push(episode);
+    return acc;
+  }, {});
+
+  const totalCount = Object.values(groups).reduce((sum, g) => sum + g.episodes.length, 0);
+
+  return (
+    <div className="space-y-6">
+      <SectionHeader label="Liked Episodes" count={totalCount} />
+      <div className="space-y-6">
+        {Object.values(groups).map(({ series, episodes }) => (
+          <div key={series.id} className="space-y-2">
+            <button
+              onClick={() => onSelectSeries(series.id)}
+              className="text-xs font-bold text-[#16C47F] uppercase tracking-widest hover:underline"
+            >
+              {series.title}
+            </button>
+            <AnimatePresence mode="popLayout">
+              {episodes.map((ep, i) => (
+                <EpisodeRow
+                  key={ep.id}
+                  index={i}
+                  title={ep.title}
+                  duration={ep.duration}
+                  onPlay={() => onSelectSeries(series.id, ep.id)}
+                  onRemove={() => {}}
+                  isVideo
+                  hideRemove
+                />
+              ))}
+            </AnimatePresence>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ─── Page root ─────────────────────────────────────────────────────────────────
 function Favorites({ user, onLogin, onRegister, onSelectSeries, onSelectBook }: FavoritesProps) {
-  const [tab, setTab] = useState<"series" | "lectures">("series");
+  const [tab, setTab] = useState<"series" | "lectures" | "liked">("series");
   const [direction, setDirection] = useState(1);
 
   if (!user) return <LoginGate onLogin={onLogin} onRegister={onRegister} />;
 
-  function switchTab(t: "series" | "lectures") {
-    setDirection(t === "lectures" ? 1 : -1);
+  const TAB_ORDER: ("series" | "lectures" | "liked")[] = ["series", "lectures", "liked"];
+  function switchTab(t: "series" | "lectures" | "liked") {
+    setDirection(TAB_ORDER.indexOf(t) > TAB_ORDER.indexOf(tab) ? 1 : -1);
     setTab(t);
   }
 
@@ -449,7 +539,7 @@ function Favorites({ user, onLogin, onRegister, onSelectSeries, onSelectBook }: 
         animate={{ opacity: 1, y: 0 }}
         transition={{ ...spring, delay: 0.13 }}
       >
-        {(["series", "lectures"] as const).map((t) => (
+        {(["series", "lectures", "liked"] as const).map((t) => (
           <button
             key={t}
             onClick={() => switchTab(t)}
@@ -463,7 +553,9 @@ function Favorites({ user, onLogin, onRegister, onSelectSeries, onSelectBook }: 
                 transition={spring}
               />
             )}
-            <span className="relative z-10">{t === "series" ? "Saved Series" : "Saved Lectures"}</span>
+            <span className="relative z-10">
+              {t === "series" ? "Saved Series" : t === "lectures" ? "Saved Lectures" : "Liked"}
+            </span>
           </button>
         ))}
       </motion.div>
@@ -476,10 +568,9 @@ function Favorites({ user, onLogin, onRegister, onSelectSeries, onSelectBook }: 
           exit={{ opacity: 0, x: direction * -20 }}
           transition={spring}
         >
-          {tab === "series"
-            ? <SavedSeriesTab onSelectSeries={onSelectSeries} onSelectBook={onSelectBook} />
-            : <SavedLecturesTab onSelectSeries={onSelectSeries} onSelectBook={onSelectBook} />
-          }
+          {tab === "series" && <SavedSeriesTab onSelectSeries={onSelectSeries} onSelectBook={onSelectBook} />}
+          {tab === "lectures" && <SavedLecturesTab onSelectSeries={onSelectSeries} onSelectBook={onSelectBook} />}
+          {tab === "liked" && <LikedVideosTab onSelectSeries={onSelectSeries} />}
         </motion.div>
       </AnimatePresence>
     </div>

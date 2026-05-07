@@ -27,6 +27,7 @@ interface User {
   id: string;
   name: string;
   email: string;
+  avatar?: string;
 }
 
 function App() {
@@ -67,7 +68,7 @@ function App() {
           if (response.ok) {
             const userData = await response.json();
             const id = userData._id ?? userData.id;
-            setUser({ id, name: userData.name, email: userData.email });
+            setUser({ id, name: userData.name, email: userData.email, avatar: userData.avatar || '' });
             setUserId(id);
             fetchFavorites();
           } else {
@@ -244,6 +245,7 @@ function App() {
           currentPage={currentPage}
           user={user}
           onLogout={handleLogout}
+          avatar={user?.avatar}
         />
 
         <div className="pl-0 md:pl-20">

@@ -20,6 +20,7 @@ app.use('/api/users', require('./routes/userRoutes'));
 app.use('/api/comments', require('./routes/commentRoutes'));
 app.use('/api/watch-progress', require('./routes/watchProgressRoutes'));
 app.use('/api/audio-progress', require('./routes/audioProgressRoutes'));
+app.use('/api/video-reactions', require('./routes/videoReactionRoutes'));
 // ---------------------------
 
 app.get('/', (req, res) => {

@@ -29,7 +29,7 @@ interface CommentType {
 
 interface VideoDetailsProps {
   series: Series;
-  user: { id: string; name: string; email: string } | null;
+  user: { id: string; name: string; email: string; avatar?: string } | null;
   onBack: () => void;
   initialEpisodeId?: number;
   initialTimestamp?: number;
@@ -125,7 +125,9 @@ function VideoDetailsPage({ series, user, onBack, initialEpisodeId, initialTimes
   const replyListRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const replyInputRef = useRef<HTMLInputElement>(null);
 
-  const [localReaction, setLocalReaction] = useState<"like" | "dislike" | null>(null);
+  const [userReaction, setUserReaction] = useState<"like" | "dislike" | null>(null);
+  const [reactionCounts, setReactionCounts] = useState({ likes: 0, dislikes: 0 });
+  const [pendingReaction, setPendingReaction] = useState(false);
   const [reported, setReported] = useState(false);
   const [pendingSeries, setPendingSeries] = useState(false);
   const [pendingEpisode, setPendingEpisode] = useState(false);
@@ -163,9 +165,22 @@ function VideoDetailsPage({ series, user, onBack, initialEpisodeId, initialTimes
     }
   };
 
+  const fetchReactions = async () => {
+    const token = localStorage.getItem("token");
+    const res = await fetch(
+      `http://localhost:5000/api/video-reactions/${series.id}/${currentEpisode.id}`,
+      token ? { headers: { "x-auth-token": token } } : {}
+    );
+    if (res.ok) {
+      const data = await res.json();
+      setReactionCounts({ likes: data.likes, dislikes: data.dislikes });
+      setUserReaction(data.userReaction);
+    }
+  };
+
   useEffect(() => {
     fetchComments();
-    setLocalReaction(null);
+    fetchReactions();
     setReported(false);
     setReplyingToId(null);
     setExpandedReplies([]);
@@ -372,12 +387,21 @@ function VideoDetailsPage({ series, user, onBack, initialEpisodeId, initialTimes
     return (
       <div key={c._id} data-comment-id={c._id} className={`flex gap-3 group${isReply ? " relative pl-4 border-l-2 border-[#16C47F]/15" : ""}`}>
         {/* Avatar */}
-        <div
-          className="ca w-8 h-8 rounded-full shrink-0 flex items-center justify-center text-xs font-bold text-black"
-          style={{ background: "linear-gradient(135deg, #22e696, #16c47f)", minWidth: isReply ? 32 : 36, minHeight: isReply ? 32 : 36, width: isReply ? 32 : 36, height: isReply ? 32 : 36 }}
-        >
-          {c.userName[0].toUpperCase()}
-        </div>
+        {user?.id === c.userId && user?.avatar ? (
+          <div
+            className="ca rounded-full shrink-0 overflow-hidden"
+            style={{ minWidth: isReply ? 32 : 36, minHeight: isReply ? 32 : 36, width: isReply ? 32 : 36, height: isReply ? 32 : 36 }}
+          >
+            <img src={user.avatar} alt="" className="w-full h-full object-cover" style={{ maxWidth: "none" }} />
+          </div>
+        ) : (
+          <div
+            className="ca w-8 h-8 rounded-full shrink-0 flex items-center justify-center text-xs font-bold text-black"
+            style={{ background: "linear-gradient(135deg, #22e696, #16c47f)", minWidth: isReply ? 32 : 36, minHeight: isReply ? 32 : 36, width: isReply ? 32 : 36, height: isReply ? 32 : 36 }}
+          >
+            {c.userName[0].toUpperCase()}
+          </div>
+        )}
 
         {/* Body */}
         <div className="cb flex-1 min-w-0">
@@ -597,23 +621,59 @@ function VideoDetailsPage({ series, user, onBack, initialEpisodeId, initialTimes
                   </button>
 
                   <button
-                    onClick={() => setLocalReaction((prev) => prev === "like" ? null : "like")}
+                    onClick={async () => {
+                      if (!user || pendingReaction) return;
+                      setPendingReaction(true);
+                      try {
+                        const token = localStorage.getItem("token");
+                        const res = await fetch("http://localhost:5000/api/video-reactions", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json", "x-auth-token": token! },
+                          body: JSON.stringify({ seriesId: series.id, episodeId: currentEpisode.id, reaction: "like" }),
+                        });
+                        if (res.ok) {
+                          const data = await res.json();
+                          setReactionCounts({ likes: data.likes, dislikes: data.dislikes });
+                          setUserReaction(data.userReaction);
+                        }
+                      } finally {
+                        setPendingReaction(false);
+                      }
+                    }}
                     className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium border transition-all hover:scale-105 active:scale-95 ${
-                      localReaction === "like" ? "bg-blue-500/10 border-blue-500/30 text-blue-400" : "bg-white/5 border-white/10 text-white/50 hover:text-white hover:border-white/25"
-                    }`}
+                      userReaction === "like" ? "bg-blue-500/10 border-blue-500/30 text-blue-400" : "bg-white/5 border-white/10 text-white/50 hover:text-white hover:border-white/25"
+                    } ${!user ? "opacity-40 cursor-not-allowed" : ""} ${pendingReaction ? "opacity-50 pointer-events-none" : ""}`}
                   >
-                    {localReaction === "like" ? <IoThumbsUp className="text-base" /> : <IoThumbsUpOutline className="text-base" />}
-                    <span>Like</span>
+                    {userReaction === "like" ? <IoThumbsUp className="text-base" /> : <IoThumbsUpOutline className="text-base" />}
+                    <span>Like{reactionCounts.likes > 0 ? ` ${reactionCounts.likes}` : ""}</span>
                   </button>
 
                   <button
-                    onClick={() => setLocalReaction((prev) => prev === "dislike" ? null : "dislike")}
+                    onClick={async () => {
+                      if (!user || pendingReaction) return;
+                      setPendingReaction(true);
+                      try {
+                        const token = localStorage.getItem("token");
+                        const res = await fetch("http://localhost:5000/api/video-reactions", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json", "x-auth-token": token! },
+                          body: JSON.stringify({ seriesId: series.id, episodeId: currentEpisode.id, reaction: "dislike" }),
+                        });
+                        if (res.ok) {
+                          const data = await res.json();
+                          setReactionCounts({ likes: data.likes, dislikes: data.dislikes });
+                          setUserReaction(data.userReaction);
+                        }
+                      } finally {
+                        setPendingReaction(false);
+                      }
+                    }}
                     className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium border transition-all hover:scale-105 active:scale-95 ${
-                      localReaction === "dislike" ? "bg-red-500/10 border-red-500/30 text-red-400" : "bg-white/5 border-white/10 text-white/50 hover:text-white hover:border-white/25"
-                    }`}
+                      userReaction === "dislike" ? "bg-red-500/10 border-red-500/30 text-red-400" : "bg-white/5 border-white/10 text-white/50 hover:text-white hover:border-white/25"
+                    } ${!user ? "opacity-40 cursor-not-allowed" : ""} ${pendingReaction ? "opacity-50 pointer-events-none" : ""}`}
                   >
-                    {localReaction === "dislike" ? <IoThumbsDown className="text-base" /> : <IoThumbsDownOutline className="text-base" />}
-                    <span>Dislike</span>
+                    {userReaction === "dislike" ? <IoThumbsDown className="text-base" /> : <IoThumbsDownOutline className="text-base" />}
+                    <span>Dislike{reactionCounts.dislikes > 0 ? ` ${reactionCounts.dislikes}` : ""}</span>
                   </button>
 
                   <button
@@ -626,6 +686,34 @@ function VideoDetailsPage({ series, user, onBack, initialEpisodeId, initialTimes
                     <span>{reported ? "Reported" : "Report"}</span>
                   </button>
                 </motion.div>
+
+                {/* Like/dislike ratio bar */}
+                {(reactionCounts.likes + reactionCounts.dislikes) > 0 && (
+                  <motion.div variants={staggerItem} className="mt-4">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <div className="flex items-center gap-1.5">
+                        <IoThumbsUp className="text-[10px] text-[#16C47F]" />
+                        <span className="text-xs font-semibold text-[#16C47F] tabular-nums">{reactionCounts.likes}</span>
+                      </div>
+                      <span className="text-[10px] text-white/25 tabular-nums">
+                        {Math.round((reactionCounts.likes / (reactionCounts.likes + reactionCounts.dislikes)) * 100)}% liked
+                      </span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs font-semibold text-white/30 tabular-nums">{reactionCounts.dislikes}</span>
+                        <IoThumbsDown className="text-[10px] text-white/30" />
+                      </div>
+                    </div>
+                    <div className="h-1 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.07)" }}>
+                      <motion.div
+                        className="h-full rounded-full"
+                        style={{ background: "linear-gradient(90deg, #16c47f, #22e696)" }}
+                        initial={{ width: 0 }}
+                        animate={{ width: `${Math.round((reactionCounts.likes / (reactionCounts.likes + reactionCounts.dislikes)) * 100)}%` }}
+                        transition={{ duration: 0.7, ease: "easeOut" }}
+                      />
+                    </div>
+                  </motion.div>
+                )}
 
                 {/* Description */}
                 <motion.p variants={staggerItem} className="text-text-muted mt-5 leading-relaxed text-sm">

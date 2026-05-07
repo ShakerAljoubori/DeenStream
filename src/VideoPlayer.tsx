@@ -326,13 +326,13 @@ const VideoPlayer = ({ url, title, onClose, initialTimestamp, onProgress, poster
                   style={{ background: `linear-gradient(to right, #16c47f 0%, #f5c451 ${Math.max(volume * 100, volume > 0 ? 3 : 0)}%, rgba(255, 255, 255, 0.2) ${Math.max(volume * 100, volume > 0 ? 3 : 0)}%)` }}
                 />
               </div>
-              <button onClick={(e) => { e.stopPropagation(); toggleFullscreen(); }} className="text-white/60 hover:text-[#16C47F] transition-all">
-                <FullscreenIcon />
-              </button>
+              <span className="text-sm font-mono font-bold text-white/90 tabular-nums" style={{ textShadow: "0 1px 6px rgba(0,0,0,0.9)" }}>
+                {formatTime(currentTime)} / {formatTime(duration)}
+              </span>
             </div>
-            <span className="text-xs font-mono text-white/40 tabular-nums">
-              {formatTime(currentTime)} / {formatTime(duration)}
-            </span>
+            <button onClick={(e) => { e.stopPropagation(); toggleFullscreen(); }} className="text-white/60 hover:text-[#16C47F] transition-all">
+              <FullscreenIcon />
+            </button>
           </div>
         </div>
       </div>

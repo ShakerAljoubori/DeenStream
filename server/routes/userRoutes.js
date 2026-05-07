@@ -68,7 +68,8 @@ router.post('/register', async (req, res) => {
       user: {
         id: user._id,
         name: user.name,
-        email: user.email
+        email: user.email,
+        avatar: user.avatar || '',
       }
     });
 
@@ -103,7 +104,8 @@ router.post('/login', async (req, res) => {
       user: {
         id: user._id,
         name: user.name,
-        email: user.email
+        email: user.email,
+        avatar: user.avatar || '',
       }
     });
 
@@ -247,6 +249,25 @@ router.put('/email', auth, async (req, res) => {
     user.email = newEmail.trim().toLowerCase();
     await user.save();
     res.json({ id: user._id, name: user.name, email: user.email });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// UPDATE AVATAR
+router.put('/avatar', auth, async (req, res) => {
+  try {
+    const { avatar } = req.body;
+    if (!avatar || !avatar.startsWith('data:image/'))
+      return res.status(400).json({ msg: 'Invalid image' });
+    if (avatar.length > 200000)
+      return res.status(400).json({ msg: 'Image too large (max ~150 KB)' });
+    const user = await User.findByIdAndUpdate(
+      req.user.id,
+      { avatar },
+      { new: true }
+    ).select('-password');
+    res.json({ id: user._id, name: user.name, email: user.email, avatar: user.avatar });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

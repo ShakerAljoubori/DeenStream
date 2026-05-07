@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { IoClose } from "react-icons/io5";
 import { allSeries } from "./data";
@@ -98,7 +99,7 @@ function ContinueWatching({ onSelectVideo }: ContinueWatchingProps) {
                   {/* Remove button */}
                   <button
                     onClick={(e) => { e.stopPropagation(); setModalTarget({ seriesId: prog.seriesId, episodeId: prog.episodeId }); }}
-                    className="absolute top-2 right-2 z-10 w-6 h-6 rounded-full bg-black/60 backdrop-blur-sm flex items-center justify-center text-white/70 hover:text-white hover:bg-black/80 opacity-0 group-hover:opacity-100 transition-all duration-200 active:scale-95"
+                    className="absolute top-2 right-2 z-10 w-6 h-6 rounded-full bg-black/60 backdrop-blur-sm flex items-center justify-center text-white/60 hover:text-white hover:bg-black/80 transition-all duration-200 active:scale-95"
                     title="Remove from Continue Watching"
                   >
                     <IoClose className="text-sm" />
@@ -127,72 +128,72 @@ function ContinueWatching({ onSelectVideo }: ContinueWatchingProps) {
         </div>
       </section>
 
-      {/* Removal confirmation modal */}
-      <AnimatePresence>
-        {modalTarget && modalSeries && (
-          <motion.div
-            className="fixed inset-0 z-[200] flex items-center justify-center"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.18 }}
-            onClick={() => setModalTarget(null)}
-          >
-            {/* Blurred backdrop */}
-            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
-
+      {/* Removal confirmation modal — portalled to body to escape GSAP transform on contentRef */}
+      {createPortal(
+        <AnimatePresence>
+          {modalTarget && modalSeries && (
             <motion.div
-              className="relative z-10 rounded-2xl overflow-hidden flex flex-col"
-              style={{
-                background: "linear-gradient(160deg, rgba(18,32,24,0.98) 0%, rgba(10,18,14,0.99) 100%)",
-                border: "1px solid rgba(255,255,255,0.09)",
-                boxShadow: "0 24px 64px rgba(0,0,0,0.6)",
-                width: 300,
-              }}
-              initial={{ scale: 0.92, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.92, opacity: 0 }}
-              transition={{ type: "spring", stiffness: 300, damping: 30 }}
-              onClick={(e) => e.stopPropagation()}
+              className="fixed inset-0 z-[200] flex items-center justify-center"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.18 }}
+              onClick={() => setModalTarget(null)}
             >
-              {/* Thumbnail */}
-              <div className="relative w-full aspect-video">
-                <EpisodeThumbnail
-                  url={modalEpisode?.url ?? ""}
-                  fallback={modalSeries.thumbnail}
-                  alt={modalSeries.title}
-                />
-                <div className="absolute inset-0" style={{ background: "linear-gradient(to top, rgba(10,18,14,0.9) 0%, transparent 60%)" }} />
-              </div>
+              <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
 
-              {/* Content */}
-              <div className="px-5 pt-3 pb-5 flex flex-col gap-4">
-                <div>
-                  <p className="text-xs text-text-muted mb-0.5">Remove from Continue Watching?</p>
-                  <p className="text-sm font-semibold text-text-main leading-snug">{modalSeries.title}</p>
+              <motion.div
+                className="relative z-10 rounded-2xl overflow-hidden flex flex-col"
+                style={{
+                  background: "linear-gradient(160deg, rgba(18,32,24,0.98) 0%, rgba(10,18,14,0.99) 100%)",
+                  border: "1px solid rgba(255,255,255,0.09)",
+                  boxShadow: "0 24px 64px rgba(0,0,0,0.6)",
+                  width: 300,
+                }}
+                initial={{ scale: 0.92, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.92, opacity: 0 }}
+                transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="relative w-full aspect-video">
+                  <EpisodeThumbnail
+                    url={modalEpisode?.url ?? ""}
+                    fallback={modalSeries.thumbnail}
+                    alt={modalSeries.title}
+                  />
+                  <div className="absolute inset-0" style={{ background: "linear-gradient(to top, rgba(10,18,14,0.9) 0%, transparent 60%)" }} />
                 </div>
 
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => setModalTarget(null)}
-                    className="flex-1 py-2 rounded-lg text-sm font-medium text-text-muted transition-colors"
-                    style={{ background: "rgba(255,255,255,0.06)" }}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={handleConfirmRemove}
-                    className="flex-1 py-2 rounded-lg text-sm font-semibold text-white transition-opacity hover:opacity-90 active:scale-95"
-                    style={{ background: "linear-gradient(135deg, #e53e3e 0%, #c53030 100%)" }}
-                  >
-                    Remove
-                  </button>
+                <div className="px-5 pt-3 pb-5 flex flex-col gap-4">
+                  <div>
+                    <p className="text-xs text-text-muted mb-0.5">Remove from Continue Watching?</p>
+                    <p className="text-sm font-semibold text-text-main leading-snug">{modalSeries.title}</p>
+                  </div>
+
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setModalTarget(null)}
+                      className="flex-1 py-2 rounded-lg text-sm font-medium text-text-muted transition-colors"
+                      style={{ background: "rgba(255,255,255,0.06)" }}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleConfirmRemove}
+                      className="flex-1 py-2 rounded-lg text-sm font-semibold text-white transition-opacity hover:opacity-90 active:scale-95"
+                      style={{ background: "linear-gradient(135deg, #e53e3e 0%, #c53030 100%)" }}
+                    >
+                      Remove
+                    </button>
+                  </div>
                 </div>
-              </div>
+              </motion.div>
             </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+          )}
+        </AnimatePresence>,
+        document.body
+      )}
     </>
   );
 }

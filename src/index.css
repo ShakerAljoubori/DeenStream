@@ -19,6 +19,10 @@
   font-family: "Inter", sans-serif;
 }
 
+button, [role="button"] {
+  cursor: pointer;
+}
+
 body {
   min-height: 100vh;
   background: #080808;
