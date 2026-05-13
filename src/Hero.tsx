@@ -1,5 +1,7 @@
+import { useState } from "react";
 import { IoHeart, IoHeartOutline } from "react-icons/io5";
 import { useFavorites } from "./FavoritesContext";
+import { allSeries } from "./data";
 
 interface HeroProps {
   onPlay: (seriesId: string) => void;
@@ -7,9 +9,9 @@ interface HeroProps {
 }
 
 function Hero({ onPlay, user }: HeroProps) {
-  const TAWHEED_SERIES_ID = "tawheed-01";
+  const [featured] = useState(() => allSeries[Math.floor(Math.random() * allSeries.length)]);
   const { isSeriesFavorite, toggleSeries } = useFavorites();
-  const saved = isSeriesFavorite(TAWHEED_SERIES_ID);
+  const saved = isSeriesFavorite(featured.id);
 
   return (
     <main className="relative min-h-[85vh] flex flex-col justify-center px-12 text-text-main overflow-hidden">
@@ -17,7 +19,7 @@ function Hero({ onPlay, user }: HeroProps) {
       {/* Background image */}
       <div
         className="absolute inset-0 z-0 bg-cover bg-center"
-        style={{ backgroundImage: "url('https://e3.365dm.com/17/06/1600x900/0ee0f52eb177ff5801a44709978412578c6378b714792605ab2e0cad9586f2a8_3973042.jpg?20170608032802')" }}
+        style={{ backgroundImage: `url('${featured.thumbnail}')` }}
       />
 
       {/* Left fade — image bleeds to black cleanly */}
@@ -39,36 +41,23 @@ function Hero({ onPlay, user }: HeroProps) {
 
         <div className="mb-4">
           <h2 className="text-4xl md:text-5xl font-extrabold leading-[1.1] tracking-tight text-white drop-shadow-md">
-            Tawheed - The Three <br /> Fundamental Principles
+            {featured.title}
           </h2>
-
-          {/* Subtitle in gold gradient */}
-          <h3
-            className="text-3xl md:text-4xl font-bold mt-2"
-            style={{
-              background: "linear-gradient(135deg, #f5c451 0%, #e8a820 100%)",
-              WebkitBackgroundClip: "text",
-              WebkitTextFillColor: "transparent",
-              backgroundClip: "text",
-            }}
-          >
-            Al-Usool Ath-Thalaathah
-          </h3>
         </div>
 
         <p className="text-sm font-medium text-text-muted mb-6">
-          Sheikh Ahmad Musa Jibril • 37 Episodes • Aqeedah
+          {featured.instructor} • {featured.episodes.length} Episodes • {featured.category}
         </p>
 
         <p className="text-text-muted max-w-lg leading-relaxed mb-10 line-clamp-3">
-          This is a course on Tawheed taught by Shaykh Ahmad Musa Jibril, focusing on the Explanation of the Three Fundamental Principles of Islam (Al-Usool Ath-Thalaathah).
+          {featured.description}
         </p>
 
         <div className="flex gap-4 items-center">
 
           {/* Primary CTA — green gradient with glow */}
           <button
-            onClick={() => onPlay(TAWHEED_SERIES_ID)}
+            onClick={() => onPlay(featured.id)}
             className="flex items-center gap-2 text-black px-8 py-3 rounded-lg font-bold transition-all duration-300 hover:scale-105 hover:brightness-110 cursor-pointer"
             style={{
               background: "linear-gradient(135deg, #22e696 0%, #16c47f 60%, #0db36e 100%)",
@@ -79,23 +68,9 @@ function Hero({ onPlay, user }: HeroProps) {
             Play Lecture
           </button>
 
-          {/* Secondary CTA — glassmorphism with green-to-gold gradient border */}
-          <button
-            onClick={() => onPlay(TAWHEED_SERIES_ID)}
-            className="flex items-center gap-2 text-white px-8 py-3 rounded-lg font-bold transition-all duration-300 hover:scale-105 cursor-pointer"
-            style={{
-              background: "linear-gradient(rgba(255,255,255,0.07), rgba(255,255,255,0.04)) padding-box, linear-gradient(135deg, rgba(22,196,127,0.5), rgba(245,196,81,0.4)) border-box",
-              border: "1px solid transparent",
-              backdropFilter: "blur(12px)",
-            }}
-          >
-            <span className="text-lg font-black">ⓘ</span>
-            More Info
-          </button>
-
           {user && (
             <button
-              onClick={() => toggleSeries(TAWHEED_SERIES_ID)}
+              onClick={() => toggleSeries(featured.id)}
               className="p-3 rounded-lg font-bold transition-all duration-300 hover:scale-105 cursor-pointer"
               style={saved
                 ? { background: "rgba(22,196,127,0.15)", border: "1px solid rgba(22,196,127,0.4)", color: "#16c47f" }

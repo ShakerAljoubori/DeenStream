@@ -29,7 +29,8 @@
       "PowerShell(Get-ChildItem -Path \"C:\\\\Users\\\\Shaker\\\\Documents\\\\Obsidian-Vault\\\\DeenStream\" -Force | ForEach-Object { Write-Host $_.Name })",
       "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\Shaker\\\\Documents\\\\DeenStream\\\\src\" -Recurse -Include \"*.tsx\", \"*.ts\")",
       "Bash(Select-Object -ExpandProperty FullName)",
-      "Bash(Get-ChildItem -Name *.tsx, *.ts)"
+      "Bash(Get-ChildItem -Name *.tsx, *.ts)",
+      "Bash(grep -E \"\\\\.\\(env|json|js|ts|yaml|yml|conf\\)$\")"
     ]
   }
 }
